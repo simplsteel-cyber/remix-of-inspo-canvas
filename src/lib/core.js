@@ -19,6 +19,12 @@ export const C = {
   mint: '#DFF3E3', cta: '#6BAA4E', orange: '#F4A261', ink: '#2D2D2D',
   mute: '#7A7F78', line: '#ECEDEA', veg: '#2e7d32', nonveg: '#a03c2e', wa: '#1faa53',
 };
+
+// Dark palette — used by the Home (landing/dashboard) screen
+export const CD = {
+  bg: '#14150F', card: '#1E211A', card2: '#262A21',
+  line: '#333831', ink: '#F2F3EE', mute: '#9BA398',
+};
 export const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
 export const sans = { fontFamily: "'Inter', system-ui, sans-serif" };
 
