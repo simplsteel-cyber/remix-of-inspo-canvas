@@ -1,4 +1,4 @@
-# Lean Kitchen — by Black Olive · Chef Ali
+# Lean Kitchen — by Black Olive · Chef Ali Azan
 
 Mobile-first React web app (PWA-ready) for the Lean Kitchen meal subscription MVP.
 Menu browsing, onboarding, plans, in-app cart/checkout (simulated payment), nutrition

@@ -10,7 +10,7 @@ export function Welcome({ onNext }) {
       <img src={HERO} alt="Fresh chef-crafted bowl" className="w-full" style={{ height: 300, objectFit: 'cover' }} />
       <div className="flex-1 px-6 pt-8 pb-10 flex flex-col">
         <h1 style={{ ...serif, fontSize: 40, fontWeight: 700, color: C.ink, lineHeight: 1.05 }}>Lean Kitchen</h1>
-        <div className="text-sm mt-1" style={{ color: C.mute }}>by Black Olive · Chef Ali</div>
+        <div className="text-sm mt-1" style={{ color: C.mute }}>by Black Olive · Chef Ali Azan</div>
         <p className="mt-4 text-base leading-relaxed" style={{ color: '#565b54' }}>
           Healthy eating, made effortless. Chef-crafted meals tailored to your goals, delivered fresh every week.
         </p>
@@ -25,16 +25,35 @@ export function Welcome({ onNext }) {
   );
 }
 
-export function Register({ profile, setProfile, onNext }) {
+const Required = () => <span style={{ color: '#c0392b' }}> *</span>;
+
+export function Register({ profile, setProfile, onNext, onBack }) {
   const set = (k) => (e) => setProfile({ ...profile, [k]: e.target.value });
   const h = parseFloat(profile.height), w = parseFloat(profile.weight);
   const bmi = h > 0 && w > 0 ? w / Math.pow(h / 100, 2) : null;
+  const [errors, setErrors] = useState({});
+
+  const handleContinue = () => {
+    const e = {};
+    if (!profile.name.trim()) e.name = 'Name is required';
+    if (!profile.height || isNaN(h) || h <= 0) e.height = 'Height is required';
+    if (!profile.weight || isNaN(w) || w <= 0) e.weight = 'Weight is required';
+    setErrors(e);
+    if (Object.keys(e).length === 0) onNext();
+  };
+
   return (
     <div className="min-h-screen px-6 pt-10 pb-10" style={{ background: C.warm }}>
+      <div className="mb-6"><button aria-label="Back" onClick={onBack}><ChevronLeft size={20} color={C.mute} /></button></div>
       <h1 style={{ ...serif, fontSize: 32, fontWeight: 700, color: C.ink }}>Tell us about you</h1>
       <p className="text-sm mt-1 mb-6" style={{ color: C.mute }}>This shapes your recommendations. You can edit it anytime.</p>
       <div className="grid gap-4">
-        <Field label="Name"><input style={inputStyle} value={profile.name} onChange={set('name')} placeholder="Your name" /></Field>
+        <Field label={<>Name<Required /></>}>
+          <>
+            <input style={inputStyle} value={profile.name} onChange={set('name')} placeholder="Your name" />
+            {errors.name && <span className="text-xs" style={{ color: '#c0392b' }}>{errors.name}</span>}
+          </>
+        </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Age"><input style={inputStyle} inputMode="numeric" value={profile.age} onChange={set('age')} placeholder="30" /></Field>
           <Field label="Gender">
@@ -44,8 +63,18 @@ export function Register({ profile, setProfile, onNext }) {
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Height (cm)"><input style={inputStyle} inputMode="numeric" value={profile.height} onChange={set('height')} placeholder="170" /></Field>
-          <Field label="Weight (kg)"><input style={inputStyle} inputMode="numeric" value={profile.weight} onChange={set('weight')} placeholder="70" /></Field>
+          <Field label={<>Height (cm)<Required /></>}>
+            <>
+              <input style={inputStyle} inputMode="numeric" value={profile.height} onChange={set('height')} placeholder="170" />
+              {errors.height && <span className="text-xs" style={{ color: '#c0392b' }}>{errors.height}</span>}
+            </>
+          </Field>
+          <Field label={<>Weight (kg)<Required /></>}>
+            <>
+              <input style={inputStyle} inputMode="numeric" value={profile.weight} onChange={set('weight')} placeholder="70" />
+              {errors.weight && <span className="text-xs" style={{ color: '#c0392b' }}>{errors.weight}</span>}
+            </>
+          </Field>
         </div>
         <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: C.mint }}>
           <div>
@@ -55,13 +84,15 @@ export function Register({ profile, setProfile, onNext }) {
           <div className="text-xs text-right" style={{ color: '#3e6b2f' }}>A guide, not a diagnosis</div>
         </div>
         <Field label="Allergies (if any)"><input style={inputStyle} value={profile.allergies} onChange={set('allergies')} placeholder="e.g. peanuts, shellfish" /></Field>
+        <Field label="Nutritionist Reference (optional)"><input style={inputStyle} value={profile.nutritionistRef} onChange={set('nutritionistRef')} placeholder="Referred by (optional)" /></Field>
+        <Field label="Delivery Address (optional)"><input style={inputStyle} value={profile.deliveryAddress} onChange={set('deliveryAddress')} placeholder="Flat, building, street, area" /></Field>
       </div>
-      <div className="mt-8"><Btn className="w-full" onClick={onNext}>Continue</Btn></div>
+      <div className="mt-8"><Btn className="w-full" onClick={handleContinue}>Continue</Btn></div>
     </div>
   );
 }
 
-export function Onboarding({ profile, setProfile, onDone, choosePlan }) {
+export function Onboarding({ profile, setProfile, onDone, choosePlan, onBack }) {
   const [step, setStep] = useState(0);
   const goals = ['Weight loss', 'Muscle gain', 'Everyday wellness', 'Athletic performance'];
   const weeks = [6, 12, 18, 24];
@@ -78,7 +109,7 @@ export function Onboarding({ profile, setProfile, onDone, choosePlan }) {
   return (
     <div className="min-h-screen px-6 pt-10 pb-10 flex flex-col" style={{ background: C.warm }}>
       <div className="flex items-center gap-3 mb-8">
-        {step > 0 && <button aria-label="Back" onClick={() => setStep(step - 1)}><ChevronLeft size={20} color={C.mute} /></button>}
+        <button aria-label="Back" onClick={() => (step > 0 ? setStep(step - 1) : onBack())}><ChevronLeft size={20} color={C.mute} /></button>
         <div className="flex gap-1.5 flex-1">
           {[0, 1, 2, 3].map((i) => <span key={i} className="h-1 flex-1 rounded-full" style={{ background: i <= step ? C.sage : C.line }} />)}
         </div>
@@ -116,6 +147,12 @@ export function Onboarding({ profile, setProfile, onDone, choosePlan }) {
           </div>
         </div>
       </>)}
+
+      {step < 3 && (
+        <div className="mt-auto pt-8 text-center">
+          <button onClick={() => setStep(step + 1)} className="text-sm font-medium" style={{ color: C.mute }}>Skip</button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { C, serif, sans } from '../lib/core.js';
 import { IMG } from '../data/images.js';
-import { Star, Plus, Minus } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 export function DietDot({ diet, vegan }) {
   const color = diet === 'Non-Veg' ? C.nonveg : C.veg;
@@ -25,35 +25,20 @@ export function Img({ dish, className, style }) {
   );
 }
 
-export function Btn({ children, onClick, kind = 'primary', className = '', small, dark }) {
+export function Btn({ children, onClick, kind = 'primary', className = '', small }) {
   const base = `inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all ${small ? 'px-4 py-2 text-sm' : 'px-6 py-3.5 text-sm'} ${className}`;
   const styles = {
     primary: { background: C.cta, color: '#fff', boxShadow: '0 2px 10px rgba(107,170,78,0.28)' },
     secondary: { background: C.mint, color: '#3e6b2f' },
-    ghost: dark
-      ? { background: 'rgba(255,255,255,0.06)', color: '#F2F3EE', border: '1px solid rgba(255,255,255,0.16)' }
-      : { background: '#fff', color: C.ink, border: `1px solid ${C.line}` },
+    ghost: { background: '#fff', color: C.ink, border: `1px solid ${C.line}` },
   }[kind];
   return <button onClick={onClick} className={base} style={{ ...sans, ...styles }}>{children}</button>;
 }
 
-export function Stars({ value, dark }) {
+export function Stars({ value }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: dark ? '#F2F3EE' : C.ink }}>
+    <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: C.ink }}>
       <Star size={13} fill={C.orange} color={C.orange} /> {value}
-    </span>
-  );
-}
-
-export function QtyOrAdd({ dish, cart, setCart, small }) {
-  const qty = cart[dish.name] || 0;
-  const set = (n) => setCart((c) => { const x = { ...c }; if (n <= 0) delete x[dish.name]; else x[dish.name] = n; return x; });
-  if (qty === 0) return <Btn small={small} onClick={(e) => { e.stopPropagation(); set(1); }}>Add</Btn>;
-  return (
-    <span className="inline-flex items-center gap-3 rounded-full px-2 py-1.5" style={{ background: C.mint }} onClick={(e) => e.stopPropagation()}>
-      <button aria-label="Remove one" onClick={() => set(qty - 1)} className="p-1"><Minus size={14} color="#3e6b2f" /></button>
-      <span className="text-sm font-semibold" style={{ color: '#3e6b2f' }}>{qty}</span>
-      <button aria-label="Add one" onClick={() => set(qty + 1)} className="p-1"><Plus size={14} color="#3e6b2f" /></button>
     </span>
   );
 }

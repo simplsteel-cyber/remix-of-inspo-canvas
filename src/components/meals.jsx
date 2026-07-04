@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { C, serif, rating, reviews, macros, waLink, inr, DISHES, MENU_CHIPS, POPULAR_SEARCHES } from '../lib/core.js';
-import { DietDot, Img, Btn, Stars, QtyOrAdd, Sheet } from './ui.jsx';
+import { DietDot, Img, Btn, Stars, Sheet } from './ui.jsx';
 import { Heart, X, Search } from 'lucide-react';
 
-export function MealCard({ dish, onOpen, cart, setCart, favs, setFavs }) {
+export function MealCard({ dish, onOpen, favs, setFavs }) {
   const fav = favs.has(dish.name);
   return (
     <div onClick={() => onOpen(dish)} className="rounded-3xl overflow-hidden cursor-pointer transition-transform hover:-translate-y-0.5"
@@ -25,16 +25,15 @@ export function MealCard({ dish, onOpen, cart, setCart, favs, setFavs }) {
           <Stars value={rating(dish)} />
         </div>
         <div className="text-xs mt-1.5" style={{ color: C.mute }}>{dish.kcal} kcal · {dish.protein}g protein</div>
-        <div className="flex items-center justify-between mt-3">
+        <div className="mt-3">
           <span className="font-semibold" style={{ color: C.ink }}>{inr(+dish.price)}</span>
-          <QtyOrAdd dish={dish} cart={cart} setCart={setCart} small />
         </div>
       </div>
     </div>
   );
 }
 
-export function MealDetail({ dish, onClose, cart, setCart }) {
+export function MealDetail({ dish, onClose }) {
   if (!dish) return null;
   const m = macros(dish);
   return (
@@ -84,10 +83,9 @@ export function MealDetail({ dish, onClose, cart, setCart }) {
           ))}
         </div>
 
-        <div className="mt-6 grid gap-2">
-          <QtyOrAdd dish={dish} cart={cart} setCart={setCart} />
+        <div className="mt-6">
           <a href={waLink(`Hi Lean Kitchen! Quick question about ${dish.name}.`)} target="_blank" rel="noreferrer"
-            className="text-center text-xs py-2" style={{ color: C.mute }}>
+            className="text-center text-xs py-2 block" style={{ color: C.mute }}>
             Have a question? Chat with us
           </a>
         </div>

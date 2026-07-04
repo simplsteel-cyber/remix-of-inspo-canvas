@@ -3,7 +3,7 @@ import { C, DISHES, CATS, MENU_CHIPS } from '../lib/core.js';
 import { MealCard } from '../components/meals.jsx';
 import { MapPin, Search } from 'lucide-react';
 
-export function MealsScreen({ cat, setCat, openDish, cart, setCart, favs, setFavs, openSearch, promo }) {
+export function MealsScreen({ cat, setCat, openDish, favs, setFavs, openSearch, promo }) {
   const [diet, setDiet] = useState('All');
   const filtered = useMemo(() => DISHES.filter((d) => {
     if (diet === 'Veg' && d.diet !== 'Veg') return false;
@@ -46,7 +46,7 @@ export function MealsScreen({ cat, setCat, openDish, cart, setCart, favs, setFav
       </div>
       <div className="px-5 grid gap-4 mt-2">
         <div className="text-xs" style={{ color: C.mute }}>{filtered.length} meals{cat ? ` · ${cat}` : ''}</div>
-        {filtered.map((d) => <MealCard key={d.name + d.diet} dish={d} onOpen={openDish} cart={cart} setCart={setCart} favs={favs} setFavs={setFavs} />)}
+        {filtered.map((d) => <MealCard key={d.name + d.diet} dish={d} onOpen={openDish} favs={favs} setFavs={setFavs} />)}
         {filtered.length === 0 && <div className="rounded-3xl p-8 text-center text-sm" style={{ background: '#fff', border: `1px dashed ${C.line}`, color: C.mute }}>No meals in this combination yet. Clear a filter to see more.</div>}
       </div>
     </div>
