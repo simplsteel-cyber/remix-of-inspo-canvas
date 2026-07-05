@@ -9,9 +9,27 @@ export const WHATSAPP_NUMBER = '919892572408';
 
 // Placeholder plan pricing — confirm real numbers before launch
 export const PLANS = [
-  { id: 'starter', name: 'Starter Week', meals: 6, perMeal: 549, desc: 'Six chef-crafted meals to try us out. Pick any dishes you like.' },
-  { id: 'weekly', name: 'Weekly Plan', meals: 12, perMeal: 499, desc: 'Lunch and dinner, six days a week. The menu rotates so it never repeats.', popular: true },
-  { id: 'monthly', name: 'Monthly Plan', meals: 24, perMeal: 449, desc: 'A month of meals matched to your goal, with a dietitian consultation included.' },
+  {
+    id: 'starter', name: 'Starter Week', meals: 6, perMeal: 549, duration: '1 week', bestFor: 'Trying us out',
+    desc: 'Six chef-crafted meals to try us out. Pick any dishes you like.',
+    benefits: ['Pick any 6 dishes from the menu', 'No commitment beyond one week', 'Free delivery within 5 km'],
+    included: ['6 chef-crafted meals', 'Nutrition details with every dish', 'WhatsApp support'],
+    dietitian: false,
+  },
+  {
+    id: 'weekly', name: 'Weekly Plan', meals: 12, perMeal: 499, duration: 'Renews every week', bestFor: 'Everyday routine', popular: true,
+    desc: 'Lunch and dinner, six days a week. The menu rotates so it never repeats.',
+    benefits: ['₹50 less per meal than Starter', 'Rotating menu — never repeats', 'Pause, swap, or adjust any week'],
+    included: ['12 chef-crafted meals a week', 'Menu planned around your goal', 'Priority WhatsApp support'],
+    dietitian: false,
+  },
+  {
+    id: 'monthly', name: 'Monthly Plan', meals: 24, perMeal: 449, duration: '4 weeks', bestFor: 'Committed goals',
+    desc: 'A month of meals matched to your goal, with a dietitian consultation included.',
+    benefits: ['Best price — ₹100 less per meal than Starter', 'Dietitian consultation included', 'Pause, swap, or adjust any week'],
+    included: ['24 chef-crafted meals', 'One dietitian consultation', 'Monthly progress check-in'],
+    dietitian: true,
+  },
 ];
 
 export const C = {
@@ -32,6 +50,20 @@ export const macros = (d) => {
 };
 export const waLink = (t) => `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(t)}`;
 export const inr = (n) => '₹' + Number(n).toLocaleString('en-IN');
+
+// Pre-filled WhatsApp enquiry for a subscription — this is the whole
+// "checkout": every plan ends in a personal conversation, not a payment.
+export const subscriptionEnquiry = ({ profile = {}, plan, delivery = null }) => {
+  const where = [profile.deliveryAddress, delivery?.pincode && `PIN ${delivery.pincode}`].filter(Boolean).join(' · ');
+  return [
+    `Hi Lean Kitchen! I'd like to subscribe to the ${plan.name} — ${plan.meals} meals at ${inr(plan.perMeal)} per meal.`,
+    profile.name && `Name: ${profile.name}`,
+    profile.goal && `Goal: ${profile.goal}`,
+    profile.dietPref && profile.dietPref !== 'No preference' && `Diet preference: ${profile.dietPref}`,
+    where && `Delivery: ${where}`,
+    profile.nutritionistRef && `Nutritionist reference: ${profile.nutritionistRef}`,
+  ].filter(Boolean).join('\n');
+};
 
 export const TRENDING = ['Healthy Mediterranean Bowl', 'Grilled Chicken Steak', 'Chilli Basil Paneer', 'Goan Fish Curry', 'Veg Korean Rice', 'Mutton Rogan Josh', 'Pesto Grilled Cottage Cheese', 'Chicken Green Thai Curry'];
 

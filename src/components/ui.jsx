@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { C, serif, sans } from '../lib/core.js';
 import { IMG } from '../data/images.js';
 import { Star } from 'lucide-react';
@@ -13,26 +13,45 @@ export function DietDot({ diet, vegan }) {
   );
 }
 
-export function Img({ dish, className, style }) {
+export function Skeleton({ className = '', style }) {
+  return <span aria-hidden="true" className={`block animate-pulse rounded-2xl ${className}`} style={{ background: C.line, ...style }} />;
+}
+
+export function Img({ dish, className = '', style }) {
   const src = IMG[dish.name];
-  if (src) return <img src={src} alt={dish.name} loading="lazy" className={className} style={{ objectFit: 'cover', ...style }} />;
+  const [loaded, setLoaded] = useState(false);
+  if (!src) {
+    return (
+      <div className={className + ' flex flex-col items-center justify-center gap-1'}
+        style={{ background: `linear-gradient(135deg, ${C.mint}, ${C.grey})`, ...style }}>
+        <span style={{ ...serif, fontSize: 34, color: C.sage, fontWeight: 600 }}>{dish.name[0]}</span>
+        <span className="text-xs" style={{ color: C.mute }}>Photo coming soon</span>
+      </div>
+    );
+  }
   return (
-    <div className={className + ' flex flex-col items-center justify-center gap-1'}
-      style={{ background: `linear-gradient(135deg, ${C.mint}, ${C.grey})`, ...style }}>
-      <span style={{ ...serif, fontSize: 34, color: C.sage, fontWeight: 600 }}>{dish.name[0]}</span>
-      <span className="text-xs" style={{ color: C.mute }}>Photo coming soon</span>
-    </div>
+    <span className={`relative block overflow-hidden ${className}`} style={style}>
+      {!loaded && <Skeleton className="absolute inset-0 rounded-none" />}
+      <img src={src} alt={dish.name} loading="lazy" onLoad={() => setLoaded(true)}
+        className="w-full h-full" style={{ objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity 0.2s' }} />
+    </span>
   );
 }
 
-export function Btn({ children, onClick, kind = 'primary', className = '', small }) {
-  const base = `inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all ${small ? 'px-4 py-2 text-sm' : 'px-6 py-3.5 text-sm'} ${className}`;
+export function Btn({ children, onClick, kind = 'primary', className = '', small, type = 'button', disabled, busy }) {
+  const base = `inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all ${small ? 'px-4 py-2.5 text-sm' : 'px-6 py-3.5 text-sm'} ${className}`;
   const styles = {
     primary: { background: C.cta, color: '#fff', boxShadow: '0 2px 10px rgba(107,170,78,0.28)' },
     secondary: { background: C.mint, color: '#3e6b2f' },
     ghost: { background: '#fff', color: C.ink, border: `1px solid ${C.line}` },
   }[kind];
-  return <button onClick={onClick} className={base} style={{ ...sans, ...styles }}>{children}</button>;
+  const inert = disabled || busy;
+  return (
+    <button type={type} onClick={onClick} disabled={inert} aria-busy={busy || undefined}
+      className={base} style={{ ...sans, ...styles, ...(inert ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}>
+      {busy ? 'Please wait…' : children}
+    </button>
+  );
 }
 
 export function Stars({ value }) {
@@ -44,16 +63,27 @@ export function Stars({ value }) {
 }
 
 export function Sheet({ children, onClose, label }) {
+  const panel = useRef(null);
+  useEffect(() => { panel.current?.focus(); }, []);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={label}>
-      <div className="absolute inset-0" style={{ background: 'rgba(45,45,45,0.4)' }} onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-t-3xl max-h-[92vh] overflow-y-auto" style={{ background: C.warm }}>{children}</div>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={label}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <button type="button" aria-label="Close" className="absolute inset-0 w-full" style={{ background: 'rgba(45,45,45,0.4)' }} onClick={onClose} />
+      <div ref={panel} tabIndex={-1} className="relative w-full max-w-md rounded-t-3xl max-h-[92vh] overflow-y-auto focus:outline-none" style={{ background: C.warm }}>{children}</div>
     </div>
   );
 }
 
 export const inputStyle = { background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14, padding: '12px 14px', fontSize: 14, color: C.ink, width: '100%' };
 
-export function Field({ label, children }) {
-  return <label className="grid gap-1.5 text-sm"><span className="font-medium text-xs" style={{ color: C.mute }}>{label}</span>{children}</label>;
+export const Required = () => <span aria-hidden="true" style={{ color: '#c0392b' }}> *</span>;
+
+export function Field({ label, error, children }) {
+  return (
+    <label className="grid gap-1.5 text-sm">
+      <span className="font-medium text-xs" style={{ color: C.mute }}>{label}</span>
+      {children}
+      {error && <span role="alert" className="text-xs" style={{ color: '#c0392b' }}>{error}</span>}
+    </label>
+  );
 }

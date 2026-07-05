@@ -71,7 +71,7 @@ export function MealDetail({ dish, onClose }) {
           {dish.tags.map((t) => <span key={t} className="text-xs px-3 py-1 rounded-full" style={{ background: C.mint, color: '#3e6b2f' }}>{t}</span>)}
         </div>
         <div className="rounded-2xl p-3.5 mt-4 text-xs leading-relaxed" style={{ background: C.grey, color: C.mute }}>
-          Keto and dairy-free versions are available as customisations — mention it at checkout or ask us.
+          Keto and dairy-free versions are available as customisations — ask us on WhatsApp when you subscribe.
         </div>
 
         <h3 className="mt-5 mb-2 text-sm font-semibold" style={{ color: C.ink }}>Reviews</h3>

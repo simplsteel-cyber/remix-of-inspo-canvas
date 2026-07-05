@@ -1,8 +1,9 @@
 # Lean Kitchen — by Black Olive · Chef Ali Azan
 
 Mobile-first React web app (PWA-ready) for the Lean Kitchen meal subscription MVP.
-Menu browsing, onboarding, plans, in-app cart/checkout (simulated payment), nutrition
-basics, and WhatsApp for support, questions, and dietitian booking.
+Menu browsing, authentication, onboarding, delivery eligibility, plan comparison,
+nutrition basics, and a WhatsApp-first subscription enquiry flow — there is no
+in-app payment; every plan ends in a personal WhatsApp conversation.
 
 ## Quick start
 
@@ -22,22 +23,28 @@ lean-kitchen-app/
 ├── public/
 │   └── images/
 │       ├── hero.webp             # home/welcome hero
-│       └── meals/*.webp          # 51 dish photos (800×600 webp)
+│       └── meals/*.webp          # dish photos (800×600 webp)
 ├── src/
-│   ├── App.jsx                   # shell: stage/tab routing, cart, nav
-│   ├── main.jsx                  # entry point
+│   ├── App.jsx                   # shell: stage/tab rendering, nav, overlays
+│   ├── main.jsx                  # entry point (wraps App in UserProvider)
 │   ├── index.css                 # Tailwind + global styles
+│   ├── context/
+│   │   └── UserContext.jsx       # central state: session, profile, delivery, plan, routing (persisted)
+│   ├── lib/
+│   │   ├── core.js               # palette, plans, categories, helpers, WhatsApp enquiry builder
+│   │   ├── auth.js               # auth service — swap LocalAuthProvider for Firebase/Supabase
+│   │   ├── delivery.js           # delivery eligibility — swap rule for Maps Distance Matrix/Places
+│   │   └── storage.js            # namespaced localStorage wrapper
 │   ├── components/
-│   │   ├── ui.jsx                # Btn, Img, DietDot, Stars, QtyOrAdd, Sheet, Field
+│   │   ├── ui.jsx                # Btn, Img, Skeleton, DietDot, Stars, Sheet, Field
+│   │   ├── delivery.jsx          # DeliveryForm + DeliveryStatus (shared eligibility UI)
 │   │   └── meals.jsx             # MealCard, MealDetail, SearchOverlay
 │   ├── screens/
-│   │   ├── Onboarding.jsx        # Welcome (login/guest), Register, 4-step onboarding
-│   │   ├── Home.jsx              # hero, badges, plans, most loved, categories, testimonials, promo
+│   │   ├── Onboarding.jsx        # Welcome (email/phone/Google), Register, success, onboarding steps
+│   │   ├── Home.jsx              # hero, delivery badge, plan comparison, most loved, categories
 │   │   ├── Meals.jsx             # category chips + diet filter + meal list
-│   │   ├── Orders.jsx            # cart → checkout → confirmation (payment simulated)
-│   │   └── Extras.jsx            # Nutrition (BMI, water), Account (profile, support)
-│   ├── lib/
-│   │   └── core.js               # palette, plans, categories, helpers, WhatsApp number
+│   │   ├── Subscription.jsx      # plan details, benefits, WhatsApp enquiry CTA
+│   │   └── Extras.jsx            # Nutrition (BMI, water), Account (editable profile, support)
 │   └── data/
 │       ├── dishes.json           # 60 dishes from the master menu spreadsheet
 │       └── images.js             # dish name → image path (auto-generated)
@@ -46,6 +53,25 @@ lean-kitchen-app/
 ├── vite.config.js
 └── README.md
 ```
+
+## Architecture notes
+
+- **Authentication** — `src/lib/auth.js` exposes `auth.signInWithEmail/Phone/Google`.
+  The current `LocalAuthProvider` simulates a backend on-device; implement the same
+  `signIn`/`signOut` interface against Firebase or Supabase and swap one constant.
+  Sessions persist in localStorage, so returning users stay signed in and land on
+  the homepage.
+- **Delivery eligibility** — `src/lib/delivery.js#checkDelivery` is async and returns
+  `{ status, freeDelivery, pincode, label, detail }`. Today it's a pincode rule
+  (400102 → free delivery; anything else → confirmed after enquiry); replace the
+  body with a Google Maps Distance Matrix / Places lookup without touching callers.
+- **State & routing** — `src/context/UserContext.jsx` owns session, profile, delivery,
+  selected plan, and the route (stage/tab/step). Everything is persisted, so a
+  refresh resumes mid-onboarding.
+- **Subscriptions** — there is no cart or checkout. Selecting a plan opens the
+  Subscription page; the only CTA is a WhatsApp message pre-filled by
+  `subscriptionEnquiry()` in `core.js` (name, plan, goal, diet preference,
+  delivery, nutritionist reference).
 
 ## Before launch — placeholders to replace
 
@@ -57,9 +83,10 @@ lean-kitchen-app/
    labelled "approx" in the UI. Replace with kitchen-verified grammage values in `dishes.json`.
 4. **Social proof numbers** — "4,800+ customers / 95% renewal" in `src/screens/Home.jsx`;
    verify before publishing.
-5. **Sign-in** — Google/Apple buttons are simulated; wire up real auth (e.g. Firebase Auth).
-6. **Payment** — checkout is simulated; integrate Razorpay/Cashfree for UPI + subscriptions.
-7. **Persistence** — profile/cart/orders are in-memory only; add a backend or local storage.
+5. **Sign-in** — simulated on-device; wire `src/lib/auth.js` to Firebase Auth or Supabase.
+6. **Delivery radius** — pincode rule only; wire `src/lib/delivery.js` to a distance API.
+7. **Persistence** — profile/plan/delivery live in localStorage; move to a backend
+   when auth goes live.
 
 ## Updating the menu
 
