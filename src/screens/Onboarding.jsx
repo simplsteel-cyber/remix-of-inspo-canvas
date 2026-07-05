@@ -97,8 +97,10 @@ export function Register() {
   return (
     <div className="min-h-screen px-6 pt-10 pb-10" style={{ background: C.warm }}>
       <div className="mb-6">
-        <button type="button" aria-label="Back" className="p-1 -m-1" onClick={() => setStage('welcome')}>
-          <ChevronLeft size={20} color={C.mute} />
+        <button type="button" aria-label="Back to homepage" onClick={() => setStage('app')}
+          className="inline-flex items-center gap-1.5 -ml-2 pl-2 pr-3.5 py-2 rounded-full text-sm font-medium"
+          style={{ background: '#fff', border: `1px solid ${C.line}`, color: C.ink }}>
+          <ChevronLeft size={18} color={C.ink} /> Back
         </button>
       </div>
       <h1 style={{ ...serif, fontSize: 32, fontWeight: 700, color: C.ink }}>Tell us about you</h1>
