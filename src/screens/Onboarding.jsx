@@ -11,7 +11,7 @@ const TOTAL_STEPS = 5;
 
 // ── Welcome — authentication ────────────────────────────────
 export function Welcome() {
-  const { signInWithEmail, signInWithPhone, signInWithGoogle } = useUser();
+  const { signInWithEmail, signInWithPhone, signInWithGoogle, setStage } = useUser();
   const [method, setMethod] = useState(null); // null | 'email' | 'phone'
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -31,7 +31,11 @@ export function Welcome() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: C.warm }}>
+    <div className="flex flex-col min-h-screen relative" style={{ background: C.warm }}>
+      <button type="button" aria-label="Back to homepage" onClick={() => setStage('app')}
+        className="absolute top-4 left-4 z-10 rounded-full p-2" style={{ background: 'rgba(255,255,255,0.92)' }}>
+        <ChevronLeft size={18} color={C.ink} />
+      </button>
       <img src={HERO} alt="Fresh chef-crafted bowl" className="w-full" style={{ height: 260, objectFit: 'cover' }} />
       <div className="flex-1 px-6 pt-8 pb-10 flex flex-col">
         <h1 style={{ ...serif, fontSize: 40, fontWeight: 700, color: C.ink, lineHeight: 1.05 }}>Lean Kitchen</h1>

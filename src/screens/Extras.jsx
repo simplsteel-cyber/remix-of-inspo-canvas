@@ -3,7 +3,7 @@ import { C, serif, waLink } from '../lib/core.js';
 import { Btn, Field, inputStyle, Required } from '../components/ui.jsx';
 import { DeliveryForm } from '../components/delivery.jsx';
 import { useUser } from '../context/UserContext.jsx';
-import { MessageCircle, Droplets, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, Droplets, ChevronRight, CheckCircle2, CircleUser } from 'lucide-react';
 
 export function NutritionScreen() {
   const { profile } = useUser();
@@ -48,7 +48,7 @@ const GOALS = ['Weight loss', 'Muscle gain', 'Everyday wellness', 'Athletic perf
 const DIET_PREFS = ['No preference', 'Vegetarian', 'Non-vegetarian', 'Vegan'];
 
 export function AccountScreen() {
-  const { user, profile, updateProfile, signOut } = useUser();
+  const { user, profile, updateProfile, signOut, setStage } = useUser();
   const [draft, setDraft] = useState({
     name: profile.name, height: profile.height, weight: profile.weight,
     goal: profile.goal, dietPref: profile.dietPref, allergies: profile.allergies,
@@ -71,9 +71,18 @@ export function AccountScreen() {
     setSaved(true);
   };
 
-  const signedInAs = user
-    ? user.method === 'google' ? `Google · ${user.email}` : user.method === 'email' ? user.email : user.phone
-    : '';
+  if (!user) {
+    return (
+      <div className="px-5 pt-16 text-center">
+        <CircleUser size={44} color={C.sage} strokeWidth={1.5} className="mx-auto" />
+        <h2 className="mt-4" style={{ ...serif, fontSize: 26, fontWeight: 700, color: C.ink }}>Browsing as a guest</h2>
+        <p className="text-sm mt-2" style={{ color: C.mute }}>Sign in to save your profile, goals, and delivery details.</p>
+        <div className="mt-6"><Btn onClick={() => setStage('welcome')}>Sign in or register</Btn></div>
+      </div>
+    );
+  }
+
+  const signedInAs = user.method === 'google' ? `Google · ${user.email}` : user.method === 'email' ? user.email : user.phone;
 
   return (
     <div className="px-5 pt-6 pb-6 grid gap-4">

@@ -31,7 +31,7 @@ export function PlanCard({ plan, onChoose, active }) {
 }
 
 export function HomeScreen({ openDish }) {
-  const { go, choosePlan, plan, profile, delivery } = useUser();
+  const { go, choosePlan, plan, profile, delivery, user, setStage } = useUser();
   const [checkingDelivery, setCheckingDelivery] = useState(false);
   const loved = TRENDING.slice(0, 6).map((n) => DISHES.find((d) => d.name === n)).filter(Boolean)
     .filter((d) => profile?.dietPref !== 'Vegetarian' || d.diet === 'Veg');
@@ -50,6 +50,12 @@ export function HomeScreen({ openDish }) {
             </div>
           </div>
         </div>
+
+        {!user && (
+          <div className="mt-4">
+            <Btn className="w-full" onClick={() => setStage('welcome')}>Sign in or create account</Btn>
+          </div>
+        )}
 
         <div className="mt-4">
           <DeliveryStatus delivery={delivery} onEdit={() => setCheckingDelivery(true)} />

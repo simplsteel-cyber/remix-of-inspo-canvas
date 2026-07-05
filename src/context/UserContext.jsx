@@ -16,7 +16,7 @@ export const EMPTY_PROFILE = {
   nutritionistRef: '', deliveryAddress: '', pincode: '',
 };
 
-const WELCOME = { stage: 'welcome', tab: 'home', cat: null, step: 0 };
+// The homepage is public — guests land here and sign in when ready.
 const HOME = { stage: 'app', tab: 'home', cat: null, step: 0 };
 
 const Ctx = createContext(null);
@@ -27,7 +27,7 @@ export function UserProvider({ children }) {
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [delivery, setDelivery] = useState(null);
   const [plan, setPlan] = useState(null);
-  const [route, setRoute] = useState(WELCOME);
+  const [route, setRoute] = useState(HOME);
 
   // Boot: restore the persisted session and journey.
   useEffect(() => {
@@ -72,7 +72,7 @@ export function UserProvider({ children }) {
       setProfile(EMPTY_PROFILE);
       setDelivery(null);
       setPlan(null);
-      setRoute(WELCOME);
+      setRoute(HOME);
     },
 
     // Profile & delivery

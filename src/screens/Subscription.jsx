@@ -6,7 +6,8 @@ import { useUser } from '../context/UserContext.jsx';
 import { CreditCard, CheckCircle2, MessageCircle } from 'lucide-react';
 
 export function SubscriptionScreen() {
-  const { plan, profile, delivery, choosePlan, go } = useUser();
+  const { plan, profile, delivery, choosePlan, go, user, setStage } = useUser();
+  const needsRegistration = !user || !profile.name.trim();
 
   if (!plan) {
     return (
@@ -77,12 +78,30 @@ export function SubscriptionScreen() {
 
       {delivery && <div className="mt-4"><DeliveryStatus delivery={delivery} /></div>}
 
+      {needsRegistration && (
+        <div className="rounded-3xl p-5 mt-4" style={{ background: C.mint }}>
+          <div className="text-sm font-semibold" style={{ color: '#3e6b2f' }}>Create your account first</div>
+          <p className="text-sm mt-1" style={{ color: '#3e6b2f' }}>
+            Register so we can match this plan to your goal, diet preference, and delivery area — your enquiry arrives pre-filled.
+          </p>
+          <div className="mt-3"><Btn className="w-full" onClick={() => setStage(user ? 'register' : 'welcome')}>Register now</Btn></div>
+        </div>
+      )}
+
       <div className="mt-4 grid gap-2">
-        <a href={waLink(message)} target="_blank" rel="noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-full font-semibold px-6 py-3.5 text-sm w-full"
-          style={{ background: C.wa, color: '#fff', boxShadow: '0 2px 10px rgba(31,170,83,0.28)' }}>
-          <MessageCircle size={17} /> Message us on WhatsApp
-        </a>
+        {needsRegistration ? (
+          <a href={waLink(message)} target="_blank" rel="noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-full font-semibold px-6 py-3.5 text-sm w-full"
+            style={{ background: '#fff', color: C.wa, border: `1px solid ${C.line}` }}>
+            <MessageCircle size={17} /> Or message us on WhatsApp without an account
+          </a>
+        ) : (
+          <a href={waLink(message)} target="_blank" rel="noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-full font-semibold px-6 py-3.5 text-sm w-full"
+            style={{ background: C.wa, color: '#fff', boxShadow: '0 2px 10px rgba(31,170,83,0.28)' }}>
+            <MessageCircle size={17} /> Message us on WhatsApp
+          </a>
+        )}
         <Btn kind="ghost" className="w-full" onClick={() => go('plans')}>Change plan</Btn>
       </div>
       <div className="text-xs mt-3 text-center leading-relaxed" style={{ color: C.mute }}>
