@@ -65,7 +65,7 @@ export const subscriptionEnquiry = ({ profile = {}, plan, delivery = null }) => 
   ].filter(Boolean).join('\n');
 };
 
-export const TRENDING = ['Healthy Mediterranean Bowl', 'Grilled Chicken Steak', 'Chilli Basil Paneer', 'Goan Fish Curry', 'Veg Korean Rice', 'Mutton Rogan Josh', 'Pesto Grilled Cottage Cheese', 'Chicken Green Thai Curry'];
+export const TRENDING = ['Healthy Mediterranean Bowl', 'Grilled Chicken Pomodoro', 'Paneer In Blackbean Sauce', 'Fish Goan Curry', 'Korean Tofu Bowl', 'Smoke Mutton Handi', 'Sundried Tomato Pesto Grilled Tofu', 'Chicken And Veg Thai Curry'];
 
 export const CATS = {
   'Trending': (d) => TRENDING.includes(d.name),
@@ -87,7 +87,89 @@ export const CATS = {
 };
 export const MENU_CHIPS = ['Trending', 'High Protein', 'Vegan', 'Bowls', 'Chicken', 'Seafood', 'Indian', 'Continental', 'Asian'];
 export const HOME_TILES = ["Chef's Picks", 'High Protein', 'Plant Powered', 'Everyday Wellness', 'Performance', 'Mediterranean', 'Indian Classics', 'Asian Bowls'];
-export const POPULAR_SEARCHES = ['Paneer', 'High protein', 'Thai curry', 'Bowls', 'Fish', 'Vegan'];
+
+// Some dishes carry '500/750' (two portion prices) or '' — take the base price.
+export const priceOf = (d) => parseInt(d.price, 10) || null;
+
+// Filter groups for the category pages. Each option is a predicate.
+export const FILTER_GROUPS = {
+  cuisine: {
+    label: 'Cuisine',
+    options: {
+      'Indian': (d) => d.cuisine === 'Indian',
+      'Continental': (d) => d.cuisine === 'Continental',
+      'Asian': (d) => d.cuisine === 'Asian',
+    },
+  },
+  type: {
+    label: 'Meal type',
+    options: {
+      'Lean & Light': (d) => d.section === 'Lean & Light',
+      'Balanced Plates': (d) => d.section === 'Balanced Plates',
+      'High-Protein Power': (d) => d.section === 'High-Protein Power',
+      'Vegetarian Favourites': (d) => d.section === 'Vegetarian Favourites',
+      'Plant-Based & Vegan': (d) => d.section === 'Plant-Based & Vegan',
+    },
+  },
+  protein: {
+    label: 'Protein',
+    options: {
+      '30g or more': (d) => d.protein >= 30,
+      '40g or more': (d) => d.protein >= 40,
+      '45g or more': (d) => d.protein >= 45,
+    },
+  },
+  kcal: {
+    label: 'Calories',
+    options: {
+      'Under 550': (d) => d.kcal && d.kcal <= 550,
+      '550 to 650': (d) => d.kcal > 550 && d.kcal <= 650,
+      'Over 650': (d) => d.kcal > 650,
+    },
+  },
+  price: {
+    label: 'Price',
+    options: {
+      'Under ₹500': (d) => priceOf(d) !== null && priceOf(d) < 500,
+      '₹500 to ₹600': (d) => priceOf(d) !== null && priceOf(d) >= 500 && priceOf(d) <= 600,
+      'Over ₹600': (d) => priceOf(d) !== null && priceOf(d) > 600,
+    },
+  },
+};
+
+export const SORTS = {
+  'Popularity': (a, b) => parseFloat(rating(b)) - parseFloat(rating(a)),
+  'Highest protein': (a, b) => b.protein - a.protein,
+  'Price: low to high': (a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity),
+  'Calories: low to high': (a, b) => (a.kcal ?? Infinity) - (b.kcal ?? Infinity),
+};
+
+// Which plans a dish rotates through. Premium dishes (₹650+) only
+// appear in the larger plans — confirm the rule with the kitchen.
+export const plansForDish = (d) => {
+  const p = priceOf(d);
+  return p !== null && p >= 650 ? PLANS.filter((x) => x.id !== 'starter') : PLANS;
+};
+
+// Profile-aware picks: respect diet preference, then bias toward the
+// user's goal, and fall back to top-rated when the pool runs thin.
+export const recommendDishes = (profile = {}, limit = 6) => {
+  const goalRule = {
+    'Weight loss': (d) => d.kcal && d.kcal <= 550,
+    'Muscle gain': (d) => d.protein >= 40,
+    'Athletic performance': (d) => d.protein >= 42,
+    'Everyday wellness': (d) => d.kcal && d.kcal <= 650,
+  }[profile.goal];
+  const dietOk = (d) =>
+    profile.dietPref === 'Vegetarian' ? d.diet === 'Veg'
+      : profile.dietPref === 'Vegan' ? d.vegan
+        : profile.dietPref === 'Non-vegetarian' ? d.diet === 'Non-Veg'
+          : true;
+  const pool = DISHES.filter(dietOk);
+  const primary = goalRule ? pool.filter(goalRule) : pool;
+  const list = primary.length >= limit ? primary : pool;
+  return [...list].sort(SORTS['Popularity']).slice(0, limit);
+};
 
 // Placeholder testimonials — replace with real customer quotes before launch
 export const TESTIMONIALS = [

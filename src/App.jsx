@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { C, sans } from './lib/core.js';
+import { C, sans, waLink } from './lib/core.js';
 import { useUser } from './context/UserContext.jsx';
 import { Welcome, Register, RegisterSuccess, Onboarding } from './screens/Onboarding.jsx';
 import { HomeScreen } from './screens/Home.jsx';
 import { MealsScreen } from './screens/Meals.jsx';
 import { SubscriptionScreen } from './screens/Subscription.jsx';
 import { NutritionScreen, AccountScreen } from './screens/Extras.jsx';
-import { MealDetail, SearchOverlay } from './components/meals.jsx';
+import { MealDetail } from './components/meals.jsx';
 import { Skeleton } from './components/ui.jsx';
-import { Home, UtensilsCrossed, CreditCard, HeartPulse, CircleUser } from 'lucide-react';
+import { Home, UtensilsCrossed, CreditCard, HeartPulse, CircleUser, MessageCircle } from 'lucide-react';
 
 const TABS = [
   { id: 'home', label: 'Home', icon: Home },
@@ -30,14 +30,12 @@ function BootScreen() {
 }
 
 export default function App() {
-  const { booting, route, go } = useUser();
+  const { booting, route, go, trackViewed } = useUser();
   const { stage, tab } = route;
 
   // Transient UI state — deliberately not persisted.
   const [detail, setDetail] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [recent, setRecent] = useState([]);
-  const [favs, setFavs] = useState(new Set());
+  const openDish = (dish) => { trackViewed(dish.name); setDetail(dish); };
 
   return (
     <div className="min-h-screen flex justify-center" style={{ background: '#EFEFEC', ...sans }}>
@@ -49,16 +47,24 @@ export default function App() {
           {stage === 'onboard' && <Onboarding />}
           {stage === 'app' && (<>
             <main className="pb-28">
-              {tab === 'home' && <HomeScreen openDish={setDetail} />}
-              {tab === 'meals' && <MealsScreen openDish={setDetail} openSearch={() => setSearching(true)} favs={favs} setFavs={setFavs} />}
+              {tab === 'home' && <HomeScreen openDish={openDish} />}
+              {tab === 'meals' && <MealsScreen openDish={openDish} />}
               {tab === 'orders' && <SubscriptionScreen />}
               {tab === 'nutrition' && <NutritionScreen />}
               {tab === 'account' && <AccountScreen />}
             </main>
 
-            <nav className="fixed bottom-0 w-full max-w-md grid grid-cols-5" aria-label="Main" style={{ background: 'rgba(255,255,255,0.96)', borderTop: `1px solid ${C.line}`, backdropFilter: 'blur(8px)' }}>
+            {/* Persistent WhatsApp support — the CTA follows the user everywhere. */}
+            <a href={waLink('Hi Lean Kitchen! I have a question about your meal plans.')} target="_blank" rel="noreferrer"
+              aria-label="Chat with us on WhatsApp"
+              className="fixed z-40 rounded-full p-3.5 shadow-lg"
+              style={{ background: C.wa, color: '#fff', bottom: '5.5rem', right: 'max(1rem, calc(50vw - 208px))' }}>
+              <MessageCircle size={22} strokeWidth={2} />
+            </a>
+
+            <nav className="fixed bottom-0 w-full max-w-md grid grid-cols-5 z-30" aria-label="Main" style={{ background: 'rgba(255,255,255,0.96)', borderTop: `1px solid ${C.line}`, backdropFilter: 'blur(8px)' }}>
               {TABS.map(({ id, label, icon: Icon }) => (
-                <button key={id} type="button" onClick={() => go(id)} aria-current={tab === id ? 'page' : undefined}
+                <button key={id} type="button" onClick={() => go(id, null)} aria-current={tab === id ? 'page' : undefined}
                   className="relative flex flex-col items-center gap-1 py-3 text-xs font-medium" style={{ color: tab === id ? '#3e6b2f' : C.mute }}>
                   <Icon size={20} strokeWidth={1.8} />
                   {label}
@@ -67,8 +73,6 @@ export default function App() {
             </nav>
 
             {detail && <MealDetail dish={detail} onClose={() => setDetail(null)} />}
-            {searching && <SearchOverlay recent={recent} onClose={() => setSearching(false)}
-              onPick={(d, c) => { setSearching(false); if (d) { setDetail(d); setRecent((r) => [d.name, ...r.filter((x) => x !== d.name)].slice(0, 5)); } if (c) go('meals', c); }} />}
           </>)}
         </>)}
       </div>

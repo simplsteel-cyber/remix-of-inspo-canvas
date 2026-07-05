@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { C, serif, rating, inr, DISHES, PLANS, TRENDING, HOME_TILES, TESTIMONIALS } from '../lib/core.js';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { C, serif, inr, DISHES, PLANS, TRENDING, HOME_TILES, TESTIMONIALS, recommendDishes } from '../lib/core.js';
 import { HERO } from '../data/images.js';
 import { KITCHEN } from '../lib/delivery.js';
-import { Btn, Img, Stars, Sheet } from '../components/ui.jsx';
+import { Btn, Sheet, SectionTitle, cardStyle } from '../components/ui.jsx';
+import { MiniMealCard } from '../components/meals.jsx';
 import { DeliveryForm, DeliveryStatus } from '../components/delivery.jsx';
+import { PlanCompareSheet } from '../components/plans.jsx';
 import { useUser } from '../context/UserContext.jsx';
-import { BadgeCheck, Sun, Leaf, Recycle, ChevronRight, Star, CheckCircle2 } from 'lucide-react';
+import { BadgeCheck, Sun, Leaf, Recycle, ChevronRight, Star, CheckCircle2, Sparkles } from 'lucide-react';
 
 export function PlanCard({ plan, onChoose, active }) {
   return (
-    <div className="rounded-3xl p-5 relative" style={{ background: '#fff', border: plan.popular ? `1.5px solid ${C.sage}` : `1px solid ${C.line}`, boxShadow: '0 4px 18px rgba(45,45,45,0.04)' }}>
+    <div className="rounded-3xl p-5 relative" style={{ ...cardStyle, border: plan.popular ? `1.5px solid ${C.sage}` : cardStyle.border, boxShadow: '0 4px 18px rgba(45,45,45,0.04)' }}>
       {plan.popular && <span className="absolute -top-2.5 left-5 text-xs font-semibold px-3 py-1 rounded-full" style={{ background: C.mint, color: '#3e6b2f' }}>Most popular</span>}
       <div className="flex items-start justify-between gap-2">
         <h3 style={{ ...serif, fontSize: 22, fontWeight: 700, color: C.ink }}>{plan.name}</h3>
@@ -31,10 +33,29 @@ export function PlanCard({ plan, onChoose, active }) {
 }
 
 export function HomeScreen({ openDish }) {
-  const { go, choosePlan, plan, profile, delivery, user, setStage } = useUser();
+  const { go, choosePlan, plan, profile, delivery, user, setStage, route, clearAnchor } = useUser();
   const [checkingDelivery, setCheckingDelivery] = useState(false);
-  const loved = TRENDING.slice(0, 6).map((n) => DISHES.find((d) => d.name === n)).filter(Boolean)
-    .filter((d) => profile?.dietPref !== 'Vegetarian' || d.diet === 'Veg');
+  const [comparing, setComparing] = useState(false);
+  const plansRef = useRef(null);
+
+  // "Explore plans" from anywhere scrolls reliably to the Plans section.
+  useEffect(() => {
+    if (route.anchor === 'plans' && plansRef.current) {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      plansRef.current.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+      clearAnchor();
+    }
+  }, [route.anchor, clearAnchor]);
+
+  const recommended = useMemo(
+    () => (profile.goal || profile.dietPref !== 'No preference' ? recommendDishes(profile) : []),
+    [profile]
+  );
+  const loved = useMemo(
+    () => TRENDING.slice(0, 6).map((n) => DISHES.find((d) => d.name === n)).filter(Boolean)
+      .filter((d) => profile.dietPref !== 'Vegetarian' || d.diet === 'Veg'),
+    [profile.dietPref]
+  );
 
   return (
     <div className="pb-6">
@@ -63,43 +84,53 @@ export function HomeScreen({ openDish }) {
 
         <div className="grid grid-cols-2 gap-2 mt-3">
           {[[BadgeCheck, 'Nutritionist approved'], [Sun, 'Fresh daily'], [Leaf, 'No preservatives'], [Recycle, 'Sustainable packaging']].map(([I, t]) => (
-            <div key={t} className="flex items-center gap-2 rounded-2xl px-3.5 py-3 text-xs font-medium" style={{ background: '#fff', border: `1px solid ${C.line}`, color: C.ink }}>
+            <div key={t} className="flex items-center gap-2 rounded-2xl px-3.5 py-3 text-xs font-medium" style={{ ...cardStyle, color: C.ink }}>
               <I size={16} color={C.sage} strokeWidth={1.8} /> {t}
             </div>
           ))}
         </div>
       </div>
 
-      <div className="px-5 mt-8" id="plans">
-        <h2 style={{ ...serif, fontSize: 24, fontWeight: 700, color: C.ink }}>Plans</h2>
+      {recommended.length > 0 && (
+        <div className="mt-8">
+          <div className="px-5 flex items-center gap-2">
+            <Sparkles size={18} color={C.sage} strokeWidth={1.8} />
+            <SectionTitle>Recommended for you</SectionTitle>
+          </div>
+          <div className="px-5 text-xs mt-0.5" style={{ color: C.mute }}>
+            Based on {[profile.goal, profile.dietPref !== 'No preference' ? profile.dietPref.toLowerCase() : null].filter(Boolean).join(' · ')}
+          </div>
+          <div className="flex gap-3 overflow-x-auto px-5 mt-3 pb-2 no-scrollbar">
+            {recommended.map((d) => <MiniMealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
+          </div>
+        </div>
+      )}
+
+      <div ref={plansRef} className="px-5 mt-8" id="plans" style={{ scrollMarginTop: 12 }}>
+        <div className="flex items-center justify-between">
+          <SectionTitle>Plans</SectionTitle>
+          <button type="button" onClick={() => setComparing(true)} className="text-sm font-medium" style={{ color: '#3e6b2f' }}>
+            Compare plans
+          </button>
+        </div>
         <div className="grid gap-3.5 mt-3">
           {PLANS.map((p) => <PlanCard key={p.id} plan={p} onChoose={choosePlan} active={plan?.id === p.id} />)}
         </div>
       </div>
 
       <div className="mt-8">
-        <h2 className="px-5" style={{ ...serif, fontSize: 24, fontWeight: 700, color: C.ink }}>Most loved meals</h2>
+        <SectionTitle className="px-5">Most loved meals</SectionTitle>
         <div className="flex gap-3 overflow-x-auto px-5 mt-3 pb-2 no-scrollbar">
-          {loved.map((d) => (
-            <button key={d.name} type="button" onClick={() => openDish(d)} className="flex-none w-44 rounded-3xl overflow-hidden cursor-pointer text-left" style={{ background: '#fff', border: `1px solid ${C.line}` }}>
-              <Img dish={d} className="w-full" style={{ height: 112 }} />
-              <div className="p-3">
-                <div className="text-sm font-semibold truncate" style={{ color: C.ink }}>{d.name}</div>
-                <div className="flex items-center justify-between mt-1.5 text-xs" style={{ color: C.mute }}>
-                  <span>{d.protein}g protein</span><Stars value={rating(d)} />
-                </div>
-              </div>
-            </button>
-          ))}
+          {loved.map((d) => <MiniMealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
         </div>
       </div>
 
       <div className="px-5 mt-8">
-        <h2 style={{ ...serif, fontSize: 24, fontWeight: 700, color: C.ink }}>Categories</h2>
+        <SectionTitle>Categories</SectionTitle>
         <div className="grid grid-cols-2 gap-2.5 mt-3">
           {HOME_TILES.map((c) => (
             <button key={c} type="button" onClick={() => go('meals', c)} className="flex items-center justify-between rounded-2xl px-4 py-4 text-sm font-medium text-left"
-              style={{ background: '#fff', border: `1px solid ${C.line}`, color: C.ink }}>
+              style={{ ...cardStyle, color: C.ink }}>
               {c} <ChevronRight size={15} color={C.sage} />
             </button>
           ))}
@@ -107,7 +138,7 @@ export function HomeScreen({ openDish }) {
       </div>
 
       <div className="px-5 mt-8">
-        <div className="rounded-3xl p-5" style={{ background: '#fff', border: `1px solid ${C.line}` }}>
+        <div className="rounded-3xl p-5" style={cardStyle}>
           <div className="flex items-center gap-1">{[...Array(5)].map((_, i) => <Star key={i} size={15} fill={C.orange} color={C.orange} />)}</div>
           <div className="text-sm font-semibold mt-2" style={{ color: C.ink }}>Loved by 4,800+ customers</div>
           <div className="text-xs" style={{ color: C.mute }}>95% monthly renewal rate</div>
@@ -122,14 +153,14 @@ export function HomeScreen({ openDish }) {
       </div>
 
       <div className="px-5 mt-6">
-        <div className="rounded-3xl p-5" style={{ background: '#fff', border: `1.5px dashed ${C.orange}` }}>
+        <div className="rounded-3xl p-5" style={{ ...cardStyle, border: `1.5px dashed ${C.orange}` }}>
           <div className="text-xs font-bold" style={{ color: C.orange }}>20% OFF · FIRST WEEK</div>
           <div className="text-sm mt-0.5" style={{ color: C.ink }}>Mention code <span className="font-semibold">NOURISH20</span> when you message us on WhatsApp.</div>
         </div>
       </div>
 
       <div className="px-5 mt-8 pb-2">
-        <h2 style={{ ...serif, fontSize: 24, fontWeight: 700, color: C.ink }}>Why subscribe</h2>
+        <SectionTitle>Why subscribe</SectionTitle>
         <div className="grid gap-2 mt-3 text-sm" style={{ color: '#565b54' }}>
           {['Meals matched to your goal, not a generic diet', 'A rotating menu of 60 chef-crafted dishes', 'Fresh from our kitchen — never frozen, no preservatives', 'Pause, swap, or adjust any week'].map((b) => (
             <div key={b} className="flex gap-2.5 items-start"><CheckCircle2 size={17} color={C.sage} className="flex-none mt-0.5" strokeWidth={1.8} />{b}</div>
@@ -146,6 +177,8 @@ export function HomeScreen({ openDish }) {
           </div>
         </Sheet>
       )}
+
+      {comparing && <PlanCompareSheet onClose={() => setComparing(false)} />}
     </div>
   );
 }

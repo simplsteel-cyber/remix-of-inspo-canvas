@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { C, serif, inr, waLink, subscriptionEnquiry, PLANS } from '../lib/core.js';
-import { Btn } from '../components/ui.jsx';
+import { BackBtn, Btn, SectionTitle, cardStyle } from '../components/ui.jsx';
 import { DeliveryStatus } from '../components/delivery.jsx';
+import { PlanCompareSheet } from '../components/plans.jsx';
 import { useUser } from '../context/UserContext.jsx';
 import { CreditCard, CheckCircle2, MessageCircle } from 'lucide-react';
 
 export function SubscriptionScreen() {
-  const { plan, profile, delivery, choosePlan, go, user, setStage } = useUser();
+  const { plan, profile, delivery, choosePlan, go, goBack, user, setStage } = useUser();
+  const [comparing, setComparing] = useState(false);
   const needsRegistration = !user || !profile.name.trim();
 
   if (!plan) {
     return (
-      <div className="px-5 pt-12 pb-6">
-        <div className="text-center">
+      <div className="px-5 pt-6 pb-6">
+        <BackBtn onClick={goBack} />
+        <div className="text-center mt-8">
           <CreditCard size={44} color={C.sage} strokeWidth={1.5} className="mx-auto" />
           <h2 className="mt-4" style={{ ...serif, fontSize: 26, fontWeight: 700, color: C.ink }}>No plan selected yet</h2>
           <p className="text-sm mt-2" style={{ color: C.mute }}>Pick a plan below — we confirm everything personally on WhatsApp. No payment in the app.</p>
@@ -20,7 +23,7 @@ export function SubscriptionScreen() {
         <div className="grid gap-2.5 mt-6">
           {PLANS.map((p) => (
             <button key={p.id} type="button" onClick={() => choosePlan(p)} className="rounded-2xl p-4 text-left"
-              style={{ background: '#fff', border: p.popular ? `1.5px solid ${C.sage}` : `1px solid ${C.line}` }}>
+              style={{ ...cardStyle, border: p.popular ? `1.5px solid ${C.sage}` : cardStyle.border }}>
               <div className="flex justify-between gap-2">
                 <span className="text-sm font-semibold" style={{ color: C.ink }}>{p.name}</span>
                 <span className="text-sm font-semibold" style={{ color: C.ink }}>{inr(p.perMeal)}/meal</span>
@@ -29,6 +32,10 @@ export function SubscriptionScreen() {
             </button>
           ))}
         </div>
+        <div className="mt-4 text-center">
+          <button type="button" onClick={() => setComparing(true)} className="text-sm font-medium py-2" style={{ color: '#3e6b2f' }}>Compare plans side by side</button>
+        </div>
+        {comparing && <PlanCompareSheet onClose={() => setComparing(false)} />}
       </div>
     );
   }
@@ -43,9 +50,12 @@ export function SubscriptionScreen() {
 
   return (
     <div className="px-5 pt-6 pb-6">
-      <h2 style={{ ...serif, fontSize: 26, fontWeight: 700, color: C.ink }}>Your subscription</h2>
+      <div className="flex items-center justify-between gap-3">
+        <BackBtn onClick={goBack} />
+        <SectionTitle>Your subscription</SectionTitle>
+      </div>
 
-      <div className="rounded-3xl p-5 mt-4" style={{ background: '#fff', border: `1.5px solid ${C.sage}`, boxShadow: '0 6px 24px rgba(141,187,116,0.18)' }}>
+      <div className="rounded-3xl p-5 mt-4" style={{ ...cardStyle, border: `1.5px solid ${C.sage}`, boxShadow: '0 6px 24px rgba(141,187,116,0.18)' }}>
         <div className="flex items-start justify-between gap-2">
           <h3 style={{ ...serif, fontSize: 24, fontWeight: 700, color: C.ink }}>{plan.name}</h3>
           <span className="text-xs px-2.5 py-1 rounded-full flex-none mt-1" style={{ background: C.mint, color: '#3e6b2f' }}>{plan.bestFor}</span>
@@ -89,19 +99,13 @@ export function SubscriptionScreen() {
       )}
 
       <div className="mt-4 grid gap-2">
-        {needsRegistration ? (
-          <a href={waLink(message)} target="_blank" rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-full font-semibold px-6 py-3.5 text-sm w-full"
-            style={{ background: '#fff', color: C.wa, border: `1px solid ${C.line}` }}>
-            <MessageCircle size={17} /> Or message us on WhatsApp without an account
-          </a>
-        ) : (
-          <a href={waLink(message)} target="_blank" rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-full font-semibold px-6 py-3.5 text-sm w-full"
-            style={{ background: C.wa, color: '#fff', boxShadow: '0 2px 10px rgba(31,170,83,0.28)' }}>
-            <MessageCircle size={17} /> Message us on WhatsApp
-          </a>
-        )}
+        <a href={waLink(message)} target="_blank" rel="noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-full font-semibold px-6 py-3.5 text-sm w-full"
+          style={needsRegistration
+            ? { ...cardStyle, color: C.wa }
+            : { background: C.wa, color: '#fff', boxShadow: '0 2px 10px rgba(31,170,83,0.28)' }}>
+          <MessageCircle size={17} /> {needsRegistration ? 'Or message us on WhatsApp without an account' : 'Message us on WhatsApp'}
+        </a>
         <Btn kind="ghost" className="w-full" onClick={() => go('plans')}>Change plan</Btn>
       </div>
       <div className="text-xs mt-3 text-center leading-relaxed" style={{ color: C.mute }}>

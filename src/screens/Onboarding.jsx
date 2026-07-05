@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { C, serif, inr, PLANS } from '../lib/core.js';
 import { HERO } from '../data/images.js';
 import { KITCHEN } from '../lib/delivery.js';
-import { Btn, Field, inputStyle, Required } from '../components/ui.jsx';
+import { BackBtn, Btn, Field, inputStyle, Required } from '../components/ui.jsx';
 import { DeliveryForm } from '../components/delivery.jsx';
 import { useUser } from '../context/UserContext.jsx';
 import { ChevronLeft, CheckCircle2 } from 'lucide-react';
@@ -97,11 +97,7 @@ export function Register() {
   return (
     <div className="min-h-screen px-6 pt-10 pb-10" style={{ background: C.warm }}>
       <div className="mb-6">
-        <button type="button" aria-label="Back to homepage" onClick={() => setStage('app')}
-          className="inline-flex items-center gap-1.5 -ml-2 pl-2 pr-3.5 py-2 rounded-full text-sm font-medium"
-          style={{ background: '#fff', border: `1px solid ${C.line}`, color: C.ink }}>
-          <ChevronLeft size={18} color={C.ink} /> Back
-        </button>
+        <BackBtn onClick={() => setStage('app')} />
       </div>
       <h1 style={{ ...serif, fontSize: 32, fontWeight: 700, color: C.ink }}>Tell us about you</h1>
       <p className="text-sm mt-1 mb-6" style={{ color: C.mute }}>This shapes your recommendations. You can edit it anytime.</p>

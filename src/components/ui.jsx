@@ -1,7 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { C, serif, sans } from '../lib/core.js';
 import { IMG } from '../data/images.js';
-import { Star } from 'lucide-react';
+import { Star, ChevronLeft, Search, X } from 'lucide-react';
+
+// Shared style tokens — one definition for the white card look and
+// section headings that repeat across every screen.
+export const cardStyle = { background: '#fff', border: `1px solid ${C.line}` };
+export const inputStyle = { background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14, padding: '12px 14px', fontSize: 14, color: C.ink, width: '100%' };
+
+export function SectionTitle({ children, className = '' }) {
+  return <h2 className={className} style={{ ...serif, fontSize: 24, fontWeight: 700, color: C.ink }}>{children}</h2>;
+}
+
+export function BackBtn({ onClick, label = 'Back' }) {
+  return (
+    <button type="button" aria-label={label} onClick={onClick}
+      className="inline-flex items-center gap-1.5 -ml-2 pl-2 pr-3.5 py-2 rounded-full text-sm font-medium"
+      style={{ ...cardStyle, color: C.ink }}>
+      <ChevronLeft size={18} color={C.ink} /> {label}
+    </button>
+  );
+}
+
+export function SearchInput({ value, onChange, placeholder = 'Search meals...', autoFocus }) {
+  return (
+    <div role="search" className="flex items-center gap-2 rounded-full px-4 py-3 w-full" style={cardStyle}>
+      <Search size={16} color={C.mute} strokeWidth={1.8} className="flex-none" />
+      <input type="search" value={value} autoFocus={autoFocus} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        aria-label="Search meals" className="w-full text-sm bg-transparent focus:outline-none" style={{ color: C.ink }} />
+      {value && (
+        <button type="button" aria-label="Clear search" onClick={() => onChange('')} className="flex-none p-0.5">
+          <X size={15} color={C.mute} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function DietDot({ diet, vegan }) {
   const color = diet === 'Non-Veg' ? C.nonveg : C.veg;
@@ -43,7 +77,7 @@ export function Btn({ children, onClick, kind = 'primary', className = '', small
   const styles = {
     primary: { background: C.cta, color: '#fff', boxShadow: '0 2px 10px rgba(107,170,78,0.28)' },
     secondary: { background: C.mint, color: '#3e6b2f' },
-    ghost: { background: '#fff', color: C.ink, border: `1px solid ${C.line}` },
+    ghost: { ...cardStyle, color: C.ink },
   }[kind];
   const inert = disabled || busy;
   return (
@@ -73,8 +107,6 @@ export function Sheet({ children, onClose, label }) {
     </div>
   );
 }
-
-export const inputStyle = { background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14, padding: '12px 14px', fontSize: 14, color: C.ink, width: '100%' };
 
 export const Required = () => <span aria-hidden="true" style={{ color: '#c0392b' }}> *</span>;
 
