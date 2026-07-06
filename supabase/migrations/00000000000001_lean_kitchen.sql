@@ -65,11 +65,14 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Users must not grant themselves admin.
+-- Logged-in app users must not grant themselves admin. Changes made
+-- from the SQL editor / service role (no auth.uid()) are allowed so the
+-- first admin can be bootstrapped; RLS already blocks anonymous updates.
 create or replace function public.prevent_role_escalation()
 returns trigger language plpgsql as $$
 begin
   if new.role is distinct from old.role
+     and auth.uid() is not null
      and not exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin') then
     raise exception 'Only admins can change roles';
   end if;
