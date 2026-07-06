@@ -80,9 +80,12 @@ export function UserProvider({ children }) {
       if (u) {
         userRef.current = u;
         setUser(u);
+        // Resume only if the user left off mid-onboarding; an ordinary
+        // refresh lands on Home rather than the last tab they were on.
         const saved = storage.get('route');
-        setRoute(saved && saved.stage !== 'welcome' ? { ...saved, anchor: null } : HOME);
-        onFreshSignIn(u, { redirect: !saved || saved.stage === 'welcome' });
+        const resumingOnboarding = saved && ['register', 'registered', 'onboard'].includes(saved.stage);
+        setRoute(resumingOnboarding ? { ...saved, anchor: null } : HOME);
+        onFreshSignIn(u, { redirect: false });
       }
       setBooting(false);
 
