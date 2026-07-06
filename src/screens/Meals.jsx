@@ -181,7 +181,7 @@ function CategoryScreen({ openDish }) {
 
   return (
     <div className="pb-4">
-      <div className="sticky top-0 z-10 px-5 pt-4 pb-3" style={{ background: C.warm }}>
+      <div className="sticky z-10 px-5 pt-4 pb-3" style={{ background: C.warm, top: 52 }}>
         <div className="flex items-center justify-between gap-3">
           <BackBtn onClick={goBack} />
           <div className="text-right">

@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useState } from 'react';
-import { C, sans, waLink } from './lib/core.js';
+import { C, sans, serif, waLink } from './lib/core.js';
 import { useUser } from './context/UserContext.jsx';
 import { useCart, cartCount } from './stores/cart.js';
 import { Welcome, Register, RegisterSuccess, Onboarding } from './screens/Onboarding.jsx';
@@ -58,7 +58,15 @@ export default function App() {
           {stage === 'registered' && <RegisterSuccess />}
           {stage === 'onboard' && <Onboarding />}
           {stage === 'app' && (<>
-            <main className="pb-28">
+            <header className="fixed top-0 w-full max-w-md z-40 flex items-center justify-center"
+              style={{ height: 52, background: 'rgba(255,255,255,0.96)', borderBottom: `1px solid ${C.line}`, backdropFilter: 'blur(8px)' }}>
+              <button type="button" onClick={() => go('home', null)} aria-label="The Lean Kitchen — go to home"
+                style={{ ...serif, fontSize: 21, fontWeight: 700, color: C.ink }}>
+                The Lean Kitchen
+              </button>
+            </header>
+
+            <main className="pb-28" style={{ paddingTop: 52 }}>
               {tab === 'home' && <HomeScreen openDish={openDish} />}
               {tab === 'meals' && <MealsScreen openDish={openDish} />}
               {tab === 'orders' && <SubscriptionScreen />}
