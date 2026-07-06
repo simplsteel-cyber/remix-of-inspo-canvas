@@ -1,28 +1,34 @@
 import React, { useState } from 'react';
-import { C, serif, inr, PLANS } from '../lib/core.js';
+import { C, serif, inr } from '../lib/core.js';
 import { HERO } from '../data/images.js';
 import { KITCHEN } from '../lib/delivery.js';
 import { BackBtn, Btn, Field, inputStyle, Required } from '../components/ui.jsx';
 import { DeliveryForm } from '../components/delivery.jsx';
 import { useUser } from '../context/UserContext.jsx';
+import { useMenu } from '../context/MenuContext.jsx';
 import { ChevronLeft, CheckCircle2 } from 'lucide-react';
 
 const TOTAL_STEPS = 5;
 
-// ── Welcome — authentication ────────────────────────────────
+// ── Welcome — authentication (Supabase) ─────────────────────
 export function Welcome() {
-  const { signInWithEmail, signInWithPhone, signInWithGoogle, setStage } = useUser();
+  const { signInWithEmail, sendPhoneOtp, verifyPhoneOtp, signInWithGoogle, setStage } = useUser();
   const [method, setMethod] = useState(null); // null | 'email' | 'phone'
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
-  const run = async (signIn) => {
+  const run = async (fn) => {
     setBusy(true);
     setError('');
+    setNotice('');
     try {
-      await signIn();
+      await fn();
     } catch (err) {
       setError(err.message || 'Sign-in failed. Please try again.');
     } finally {
@@ -30,13 +36,29 @@ export function Welcome() {
     }
   };
 
+  const submitEmail = () => run(async () => {
+    await signInWithEmail(email, password);
+    // Routing happens via the auth listener once the session lands.
+  });
+  const submitPhone = () => run(async () => {
+    if (!otpSent) {
+      await sendPhoneOtp(phone);
+      setOtpSent(true);
+      setNotice('We sent a 6-digit code to your phone.');
+    } else {
+      await verifyPhoneOtp(phone, otp);
+    }
+  });
+
+  const reset = () => { setMethod(null); setError(''); setNotice(''); setOtpSent(false); setOtp(''); };
+
   return (
     <div className="flex flex-col min-h-screen relative" style={{ background: C.warm }}>
       <button type="button" aria-label="Back to homepage" onClick={() => setStage('app')}
         className="absolute top-4 left-4 z-10 rounded-full p-2" style={{ background: 'rgba(255,255,255,0.92)' }}>
         <ChevronLeft size={18} color={C.ink} />
       </button>
-      <img src={HERO} alt="Fresh chef-crafted bowl" className="w-full" style={{ height: 260, objectFit: 'cover' }} />
+      <img src={HERO} alt="Fresh chef-crafted bowl" className="w-full" style={{ height: 240, objectFit: 'cover' }} />
       <div className="flex-1 px-6 pt-8 pb-10 flex flex-col">
         <h1 style={{ ...serif, fontSize: 40, fontWeight: 700, color: C.ink, lineHeight: 1.05 }}>Lean Kitchen</h1>
         <div className="text-sm mt-1" style={{ color: C.mute }}>by Black Olive · Chef Ali Azan</div>
@@ -49,28 +71,43 @@ export function Welcome() {
         <div className="mt-auto grid gap-2.5 pt-8">
           {!method && (<>
             <Btn kind="ghost" busy={busy} onClick={() => run(signInWithGoogle)}>Continue with Google</Btn>
-            <Btn kind="ghost" disabled={busy} onClick={() => { setMethod('email'); setError(''); }}>Continue with Email</Btn>
-            <Btn kind="ghost" disabled={busy} onClick={() => { setMethod('phone'); setError(''); }}>Continue with Phone</Btn>
+            <Btn kind="ghost" disabled={busy} onClick={() => { reset(); setMethod('email'); }}>Continue with Email</Btn>
+            <Btn kind="ghost" disabled={busy} onClick={() => { reset(); setMethod('phone'); }}>Continue with Phone</Btn>
           </>)}
-          {method && (
-            <form className="grid gap-2.5" onSubmit={(e) => { e.preventDefault(); run(() => (method === 'email' ? signInWithEmail(email) : signInWithPhone(phone))); }}>
-              <Field label={method === 'email' ? 'Email' : 'Phone number'} error={error}>
-                {method === 'email' ? (
-                  <input style={inputStyle} type="email" autoComplete="email" autoFocus value={email}
-                    onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-                ) : (
-                  <input style={inputStyle} type="tel" autoComplete="tel" autoFocus value={phone}
-                    onChange={(e) => setPhone(e.target.value)} placeholder="+91 98XXX XXXXX" />
-                )}
+
+          {method === 'email' && (
+            <form className="grid gap-2.5" onSubmit={(e) => { e.preventDefault(); submitEmail(); }}>
+              <Field label="Email">
+                <input style={inputStyle} type="email" autoComplete="email" autoFocus value={email}
+                  onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              </Field>
+              <Field label="Password" error={error}>
+                <input style={inputStyle} type="password" autoComplete="current-password" value={password}
+                  onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" />
               </Field>
               <Btn type="submit" busy={busy}>Continue</Btn>
-              <button type="button" className="text-xs py-2.5 font-medium" style={{ color: C.mute }}
-                onClick={() => { setMethod(null); setError(''); }}>
-                All sign-in options
-              </button>
+              <div className="text-xs text-center" style={{ color: C.mute }}>New here? The same form creates your account.</div>
+              <button type="button" className="text-xs py-2 font-medium" style={{ color: C.mute }} onClick={reset}>All sign-in options</button>
             </form>
           )}
-          <div className="text-center text-xs mt-1" style={{ color: C.mute }}>Prototype — sign-in is simulated on this device</div>
+
+          {method === 'phone' && (
+            <form className="grid gap-2.5" onSubmit={(e) => { e.preventDefault(); submitPhone(); }}>
+              <Field label="Phone number" error={otpSent ? '' : error}>
+                <input style={inputStyle} type="tel" autoComplete="tel" autoFocus value={phone} disabled={otpSent}
+                  onChange={(e) => setPhone(e.target.value)} placeholder="+91 98XXX XXXXX" />
+              </Field>
+              {otpSent && (
+                <Field label="6-digit code" error={error}>
+                  <input style={inputStyle} inputMode="numeric" autoComplete="one-time-code" autoFocus value={otp}
+                    onChange={(e) => setOtp(e.target.value)} placeholder="123456" />
+                </Field>
+              )}
+              {notice && <div role="status" className="text-xs" style={{ color: '#3e6b2f' }}>{notice}</div>}
+              <Btn type="submit" busy={busy}>{otpSent ? 'Verify code' : 'Send code'}</Btn>
+              <button type="button" className="text-xs py-2 font-medium" style={{ color: C.mute }} onClick={reset}>All sign-in options</button>
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -154,11 +191,12 @@ export function RegisterSuccess() {
 // ── Onboarding — goal, meals, diet, delivery, recommendation ─
 export function Onboarding() {
   const { profile, updateProfile, delivery, route, setStep, setStage, choosePlan, completeOnboarding } = useUser();
+  const { plans } = useMenu();
   const step = route.step ?? 0;
   const goals = ['Weight loss', 'Muscle gain', 'Everyday wellness', 'Athletic performance'];
   const weeks = [6, 12, 18, 24];
   const diets = ['No preference', 'Vegetarian', 'Non-vegetarian', 'Vegan'];
-  const rec = profile.mealsPerWeek >= 20 ? PLANS[2] : profile.mealsPerWeek >= 10 ? PLANS[1] : PLANS[0];
+  const rec = (profile.mealsPerWeek >= 20 ? plans[2] : profile.mealsPerWeek >= 10 ? plans[1] : plans[0]) || plans[0];
   const next = () => setStep(Math.min(step + 1, TOTAL_STEPS - 1));
 
   const Chip = ({ active, children, onClick }) => (
@@ -207,7 +245,7 @@ export function Onboarding() {
           <div className="mt-5"><Btn className="w-full" onClick={next}>Continue</Btn></div>
         )}
       </>)}
-      {step === 4 && (<>
+      {step === 4 && rec && (<>
         <h1 style={{ ...serif, fontSize: 30, fontWeight: 700, color: C.ink }}>Made for you</h1>
         <p className="text-sm mt-1" style={{ color: C.mute }}>Based on your goal and week, we recommend:</p>
         <div className="rounded-3xl p-5 mt-6" style={{ background: '#fff', border: `1.5px solid ${C.sage}`, boxShadow: '0 6px 24px rgba(141,187,116,0.18)' }}>

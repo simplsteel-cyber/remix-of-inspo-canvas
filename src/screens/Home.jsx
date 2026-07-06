@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { C, serif, inr, DISHES, PLANS, TRENDING, HOME_TILES, TESTIMONIALS, recommendDishes } from '../lib/core.js';
+import { C, serif, inr, TRENDING, HOME_TILES, recommendDishes } from '../lib/core.js';
 import { HERO } from '../data/images.js';
 import { KITCHEN } from '../lib/delivery.js';
-import { Btn, Sheet, SectionTitle, cardStyle } from '../components/ui.jsx';
+import { Btn, Sheet, SectionTitle, Skeleton, cardStyle } from '../components/ui.jsx';
 import { MiniMealCard } from '../components/meals.jsx';
 import { DeliveryForm, DeliveryStatus } from '../components/delivery.jsx';
 import { PlanCompareSheet } from '../components/plans.jsx';
 import { useUser } from '../context/UserContext.jsx';
-import { BadgeCheck, Sun, Leaf, Recycle, ChevronRight, Star, CheckCircle2, Sparkles } from 'lucide-react';
+import { useMenu } from '../context/MenuContext.jsx';
+import { BadgeCheck, Sun, Leaf, Recycle, ChevronRight, CheckCircle2, Sparkles } from 'lucide-react';
 
 export function PlanCard({ plan, onChoose, active }) {
   return (
@@ -32,8 +33,17 @@ export function PlanCard({ plan, onChoose, active }) {
   );
 }
 
+function MealRowSkeleton() {
+  return (
+    <div className="flex gap-3 overflow-hidden px-5 mt-3 pb-2">
+      {[0, 1, 2].map((i) => <Skeleton key={i} className="flex-none rounded-3xl" style={{ width: 176, height: 176 }} />)}
+    </div>
+  );
+}
+
 export function HomeScreen({ openDish }) {
   const { go, choosePlan, plan, profile, delivery, user, setStage, route, clearAnchor } = useUser();
+  const { dishes, plans, menuLoading } = useMenu();
   const [checkingDelivery, setCheckingDelivery] = useState(false);
   const [comparing, setComparing] = useState(false);
   const plansRef = useRef(null);
@@ -48,13 +58,13 @@ export function HomeScreen({ openDish }) {
   }, [route.anchor, clearAnchor]);
 
   const recommended = useMemo(
-    () => (profile.goal || profile.dietPref !== 'No preference' ? recommendDishes(profile) : []),
-    [profile]
+    () => (profile.goal || profile.dietPref !== 'No preference' ? recommendDishes(profile, dishes) : []),
+    [profile, dishes]
   );
   const loved = useMemo(
-    () => TRENDING.slice(0, 6).map((n) => DISHES.find((d) => d.name === n)).filter(Boolean)
-      .filter((d) => profile.dietPref !== 'Vegetarian' || d.diet === 'Veg'),
-    [profile.dietPref]
+    () => TRENDING.map((n) => dishes.find((d) => d.name === n)).filter(Boolean)
+      .filter((d) => profile.dietPref !== 'Vegetarian' || d.diet === 'Veg').slice(0, 6),
+    [profile.dietPref, dishes]
   );
 
   return (
@@ -91,7 +101,7 @@ export function HomeScreen({ openDish }) {
         </div>
       </div>
 
-      {recommended.length > 0 && (
+      {(menuLoading || recommended.length > 0) && (profile.goal || profile.dietPref !== 'No preference') && (
         <div className="mt-8">
           <div className="px-5 flex items-center gap-2">
             <Sparkles size={18} color={C.sage} strokeWidth={1.8} />
@@ -100,9 +110,11 @@ export function HomeScreen({ openDish }) {
           <div className="px-5 text-xs mt-0.5" style={{ color: C.mute }}>
             Based on {[profile.goal, profile.dietPref !== 'No preference' ? profile.dietPref.toLowerCase() : null].filter(Boolean).join(' · ')}
           </div>
-          <div className="flex gap-3 overflow-x-auto px-5 mt-3 pb-2 no-scrollbar">
-            {recommended.map((d) => <MiniMealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
-          </div>
+          {menuLoading ? <MealRowSkeleton /> : (
+            <div className="flex gap-3 overflow-x-auto px-5 mt-3 pb-2 no-scrollbar">
+              {recommended.map((d) => <MiniMealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
+            </div>
+          )}
         </div>
       )}
 
@@ -114,15 +126,17 @@ export function HomeScreen({ openDish }) {
           </button>
         </div>
         <div className="grid gap-3.5 mt-3">
-          {PLANS.map((p) => <PlanCard key={p.id} plan={p} onChoose={choosePlan} active={plan?.id === p.id} />)}
+          {plans.map((p) => <PlanCard key={p.id} plan={p} onChoose={choosePlan} active={plan?.id === p.id} />)}
         </div>
       </div>
 
       <div className="mt-8">
         <SectionTitle className="px-5">Most loved meals</SectionTitle>
-        <div className="flex gap-3 overflow-x-auto px-5 mt-3 pb-2 no-scrollbar">
-          {loved.map((d) => <MiniMealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
-        </div>
+        {menuLoading ? <MealRowSkeleton /> : (
+          <div className="flex gap-3 overflow-x-auto px-5 mt-3 pb-2 no-scrollbar">
+            {loved.map((d) => <MiniMealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
+          </div>
+        )}
       </div>
 
       <div className="px-5 mt-8">
@@ -134,21 +148,6 @@ export function HomeScreen({ openDish }) {
               {c} <ChevronRight size={15} color={C.sage} />
             </button>
           ))}
-        </div>
-      </div>
-
-      <div className="px-5 mt-8">
-        <div className="rounded-3xl p-5" style={cardStyle}>
-          <div className="flex items-center gap-1">{[...Array(5)].map((_, i) => <Star key={i} size={15} fill={C.orange} color={C.orange} />)}</div>
-          <div className="text-sm font-semibold mt-2" style={{ color: C.ink }}>Loved by 4,800+ customers</div>
-          <div className="text-xs" style={{ color: C.mute }}>95% monthly renewal rate</div>
-          <div className="grid gap-2.5 mt-4">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="rounded-2xl p-3.5 text-sm" style={{ background: C.grey, color: '#565b54' }}>
-                “{t.text}”<div className="text-xs mt-1.5 font-medium" style={{ color: C.mute }}>— {t.name}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 

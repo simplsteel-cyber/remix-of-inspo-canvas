@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { C, serif, sans } from '../lib/core.js';
 import { IMG } from '../data/images.js';
-import { Star, ChevronLeft, Search, X } from 'lucide-react';
+import { ChevronLeft, Search, X } from 'lucide-react';
 
 // Shared style tokens — one definition for the white card look and
 // section headings that repeat across every screen.
@@ -52,7 +52,10 @@ export function Skeleton({ className = '', style }) {
 }
 
 export function Img({ dish, className = '', style }) {
-  const src = IMG[dish.name];
+  // Prefer a hosted image from the database (URL or absolute path);
+  // fall back to the bundled photo matched by dish name.
+  const dbImage = dish.image && /^(https?:)?\//.test(dish.image) ? dish.image : null;
+  const src = dbImage || IMG[dish.name];
   const [loaded, setLoaded] = useState(false);
   if (!src) {
     return (
@@ -85,14 +88,6 @@ export function Btn({ children, onClick, kind = 'primary', className = '', small
       className={base} style={{ ...sans, ...styles, ...(inert ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}>
       {busy ? 'Please wait…' : children}
     </button>
-  );
-}
-
-export function Stars({ value }) {
-  return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: C.ink }}>
-      <Star size={13} fill={C.orange} color={C.orange} /> {value}
-    </span>
   );
 }
 

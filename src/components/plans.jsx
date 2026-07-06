@@ -1,12 +1,14 @@
 import React from 'react';
-import { C, serif, inr, PLANS } from '../lib/core.js';
+import { C, serif, inr } from '../lib/core.js';
 import { Btn, Sheet } from './ui.jsx';
 import { useUser } from '../context/UserContext.jsx';
+import { useMenu } from '../context/MenuContext.jsx';
 import { Check, Minus } from 'lucide-react';
 
 // Side-by-side comparison of all plans, highlighting differences.
 export function PlanCompareSheet({ onClose }) {
   const { choosePlan } = useUser();
+  const { plans: PLANS } = useMenu();
   const rows = [
     ['Per meal', (p) => inr(p.perMeal)],
     ['Meals', (p) => String(p.meals)],

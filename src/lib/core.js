@@ -1,14 +1,14 @@
 // ─────────────────────────────────────────────────────────────
-// Lean Kitchen — shared constants and helpers
+// Lean Kitchen — shared constants and helpers.
+// Menu data lives in Supabase (see lib/menu.js); constants here
+// are UI configuration and offline fallbacks only.
 // ─────────────────────────────────────────────────────────────
-import dishes from '../data/dishes.json';
-
-export const DISHES = dishes;
 
 export const WHATSAPP_NUMBER = '919892572408';
 
-// Placeholder plan pricing — confirm real numbers before launch
-export const PLANS = [
+// Offline/bootstrap fallback — the live plans come from the
+// `plans` table. Confirm real pricing with the kitchen.
+export const FALLBACK_PLANS = [
   {
     id: 'starter', name: 'Starter Week', meals: 6, perMeal: 549, duration: '1 week', bestFor: 'Trying us out',
     desc: 'Six chef-crafted meals to try us out. Pick any dishes you like.',
@@ -40,9 +40,7 @@ export const C = {
 export const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
 export const sans = { fontFamily: "'Inter', system-ui, sans-serif" };
 
-export const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
-export const rating = (d) => (4.2 + (hash(d.name) % 8) / 10).toFixed(1);
-export const reviews = (d) => 18 + (hash(d.name) % 120);
+// Nutrition figures are kitchen estimates; carbs/fat are derived.
 export const macros = (d) => {
   if (!d.kcal || !d.protein) return { carbs: null, fat: null };
   const rem = Math.max(d.kcal - d.protein * 4, 0);
@@ -50,20 +48,6 @@ export const macros = (d) => {
 };
 export const waLink = (t) => `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(t)}`;
 export const inr = (n) => '₹' + Number(n).toLocaleString('en-IN');
-
-// Pre-filled WhatsApp enquiry for a subscription — this is the whole
-// "checkout": every plan ends in a personal conversation, not a payment.
-export const subscriptionEnquiry = ({ profile = {}, plan, delivery = null }) => {
-  const where = [profile.deliveryAddress, delivery?.pincode && `PIN ${delivery.pincode}`].filter(Boolean).join(' · ');
-  return [
-    `Hi Lean Kitchen! I'd like to subscribe to the ${plan.name} — ${plan.meals} meals at ${inr(plan.perMeal)} per meal.`,
-    profile.name && `Name: ${profile.name}`,
-    profile.goal && `Goal: ${profile.goal}`,
-    profile.dietPref && profile.dietPref !== 'No preference' && `Diet preference: ${profile.dietPref}`,
-    where && `Delivery: ${where}`,
-    profile.nutritionistRef && `Nutritionist reference: ${profile.nutritionistRef}`,
-  ].filter(Boolean).join('\n');
-};
 
 export const TRENDING = ['Healthy Mediterranean Bowl', 'Grilled Chicken Pomodoro', 'Paneer In Blackbean Sauce', 'Fish Goan Curry', 'Korean Tofu Bowl', 'Smoke Mutton Handi', 'Sundried Tomato Pesto Grilled Tofu', 'Chicken And Veg Thai Curry'];
 
@@ -138,7 +122,7 @@ export const FILTER_GROUPS = {
 };
 
 export const SORTS = {
-  'Popularity': (a, b) => parseFloat(rating(b)) - parseFloat(rating(a)),
+  'Menu order': () => 0,
   'Highest protein': (a, b) => b.protein - a.protein,
   'Price: low to high': (a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity),
   'Calories: low to high': (a, b) => (a.kcal ?? Infinity) - (b.kcal ?? Infinity),
@@ -146,14 +130,14 @@ export const SORTS = {
 
 // Which plans a dish rotates through. Premium dishes (₹650+) only
 // appear in the larger plans — confirm the rule with the kitchen.
-export const plansForDish = (d) => {
+export const plansForDish = (d, plans) => {
   const p = priceOf(d);
-  return p !== null && p >= 650 ? PLANS.filter((x) => x.id !== 'starter') : PLANS;
+  return p !== null && p >= 650 ? plans.filter((x) => x.id !== 'starter') : plans;
 };
 
 // Profile-aware picks: respect diet preference, then bias toward the
-// user's goal, and fall back to top-rated when the pool runs thin.
-export const recommendDishes = (profile = {}, limit = 6) => {
+// user's goal, and fall back to the full pool when it runs thin.
+export const recommendDishes = (profile = {}, dishes = [], limit = 6) => {
   const goalRule = {
     'Weight loss': (d) => d.kcal && d.kcal <= 550,
     'Muscle gain': (d) => d.protein >= 40,
@@ -165,15 +149,35 @@ export const recommendDishes = (profile = {}, limit = 6) => {
       : profile.dietPref === 'Vegan' ? d.vegan
         : profile.dietPref === 'Non-vegetarian' ? d.diet === 'Non-Veg'
           : true;
-  const pool = DISHES.filter(dietOk);
+  const pool = dishes.filter(dietOk);
   const primary = goalRule ? pool.filter(goalRule) : pool;
   const list = primary.length >= limit ? primary : pool;
-  return [...list].sort(SORTS['Popularity']).slice(0, limit);
+  return [...list].sort(SORTS['Highest protein']).slice(0, limit);
 };
 
-// Placeholder testimonials — replace with real customer quotes before launch
-export const TESTIMONIALS = [
-  { name: 'Riya S.', text: 'The meals actually taste like a restaurant made them — because one did. Hitting my protein target has never been this easy.' },
-  { name: 'Kunal M.', text: 'Clean food without the sad-salad feeling. Delivery is on time every single day.' },
-  { name: 'Ayesha F.', text: 'I told them my goal and allergies once. Every meal since has just… fit.' },
-];
+// ── WhatsApp order builder — the entire "checkout" ───────────
+// Cart items: [{ dish, qty, notes }]
+export const orderEnquiry = ({ profile = {}, plan = null, items = [], delivery = null }) => {
+  const where = [profile.deliveryAddress, delivery?.pincode && `PIN ${delivery.pincode}`].filter(Boolean).join(' · ');
+  const subtotal = items.reduce((s, { dish, qty }) => s + (priceOf(dish) || 0) * qty, 0);
+
+  const lines = ['Hi Lean Kitchen! I would like to place an order.'];
+  if (plan) lines.push('', `Plan: ${plan.name} — ${plan.meals} meals at ${inr(plan.perMeal)}/meal (est. ${inr(plan.meals * plan.perMeal)})`);
+  if (items.length) {
+    lines.push('', 'Meals:');
+    items.forEach(({ dish, qty, notes }, i) => {
+      const price = priceOf(dish);
+      lines.push(`${i + 1}. ${dish.name} x${qty}${price ? ` — ${inr(price * qty)}` : ''} (${dish.kcal ?? '?'} kcal · ${dish.protein ?? '?'}g protein, approx)${notes ? ` — note: ${notes}` : ''}`);
+    });
+    lines.push(`Meals subtotal: ${inr(subtotal)}`);
+  }
+  const details = [
+    profile.name && `Name: ${profile.name}`,
+    profile.goal && `Goal: ${profile.goal}`,
+    profile.dietPref && profile.dietPref !== 'No preference' && `Diet preference: ${profile.dietPref}`,
+    where && `Delivery: ${where}`,
+    profile.nutritionistRef && `Nutritionist reference: ${profile.nutritionistRef}`,
+  ].filter(Boolean);
+  if (details.length) lines.push('', ...details);
+  return lines.join('\n');
+};

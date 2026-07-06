@@ -1,9 +1,9 @@
 # Lean Kitchen — by Black Olive · Chef Ali Azan
 
-Mobile-first React web app (PWA-ready) for the Lean Kitchen meal subscription MVP.
-Menu browsing, authentication, onboarding, delivery eligibility, plan comparison,
-nutrition basics, and a WhatsApp-first subscription enquiry flow — there is no
-in-app payment; every plan ends in a personal WhatsApp conversation.
+Mobile-first React PWA for the Lean Kitchen meal subscription business.
+The menu lives in **Supabase** and is managed by uploading the master
+Excel workbook at `/admin`. Customers browse meals, build a cart, pick a
+plan, and place the order over **WhatsApp** — there is no in-app payment.
 
 ## Quick start
 
@@ -16,85 +16,85 @@ npm run preview    # preview the production build
 
 Requires Node.js 18+.
 
-## Project structure
+## One-time Supabase setup
+
+1. Open the Supabase project's **SQL Editor** and run
+   `supabase/migrations/00000000000001_lean_kitchen.sql`. This creates
+   `meals`, `plans`, and `profiles` (with row-level security), and seeds
+   both plans and all 60 dishes parsed from the Master Menu Excel.
+2. Grant yourself admin (SQL editor):
+   `update profiles set role = 'admin' where id = '<your auth user id>';`
+3. In **Authentication → Providers**, Email (password) is enabled by
+   default. The project currently requires email confirmation — new
+   users must click the link in their inbox before signing in; disable
+   “Confirm email” in Auth settings for instant sign-ups. Google and
+   Phone (SMS) are supported by the app but need their providers
+   configured; until then those buttons surface Supabase's error.
+4. To refresh the SQL seed after the Excel changes:
+   `node scripts/generate-seed.mjs "path/to/MP_SAP.xlsx"`.
+
+## Updating the menu (kitchen admins)
+
+Sign in with an admin account, open `/admin`, and upload the Excel.
+The **Master Menu** sheet is parsed (headers: Dish, Cuisine, Diet,
+Carb / Base, Vegetable Side, Price (INR), Calories (approx),
+Protein g (approx), Dietary Tags, Brochure Section, Description,
+Has Photo?, Matched Image (file)), previewed with data notes, then
+upserted by dish name. Dishes marked **“Needs photo”** or missing a
+price are imported with `availability = false` and hidden from the
+storefront until fixed. Dual prices like `500/750` store the base price
+(the raw value is kept in `price_raw`).
+
+## Architecture
 
 ```
-lean-kitchen-app/
-├── public/
-│   └── images/
-│       ├── hero.webp             # home/welcome hero
-│       └── meals/*.webp          # dish photos (800×600 webp)
-├── src/
-│   ├── App.jsx                   # shell: stage/tab rendering, nav, overlays
-│   ├── main.jsx                  # entry point (wraps App in UserProvider)
-│   ├── index.css                 # Tailwind + global styles
-│   ├── context/
-│   │   └── UserContext.jsx       # central state: session, profile, delivery, plan, routing (persisted)
-│   ├── lib/
-│   │   ├── core.js               # palette, plans, categories, helpers, WhatsApp enquiry builder
-│   │   ├── auth.js               # auth service — swap LocalAuthProvider for Firebase/Supabase
-│   │   ├── delivery.js           # delivery eligibility — swap rule for Maps Distance Matrix/Places
-│   │   └── storage.js            # namespaced localStorage wrapper
-│   ├── components/
-│   │   ├── ui.jsx                # Btn, Img, Skeleton, DietDot, Stars, Sheet, Field
-│   │   ├── delivery.jsx          # DeliveryForm + DeliveryStatus (shared eligibility UI)
-│   │   └── meals.jsx             # MealCard, MealDetail, SearchOverlay
-│   ├── screens/
-│   │   ├── Onboarding.jsx        # Welcome (email/phone/Google), Register, success, onboarding steps
-│   │   ├── Home.jsx              # hero, delivery badge, plan comparison, most loved, categories
-│   │   ├── Meals.jsx             # category chips + diet filter + meal list
-│   │   ├── Subscription.jsx      # plan details, benefits, WhatsApp enquiry CTA
-│   │   └── Extras.jsx            # Nutrition (BMI, water), Account (editable profile, support)
-│   └── data/
-│       ├── dishes.json           # 60 dishes from the master menu spreadsheet
-│       └── images.js             # dish name → image path (auto-generated)
-├── index.html
-├── package.json
-├── vite.config.js
-└── README.md
+src/
+├── App.jsx                   # shell: routes /admin, tabs, cart badge, floating WhatsApp
+├── main.jsx                  # MenuProvider + UserProvider, service-worker registration
+├── context/
+│   ├── MenuContext.jsx       # meals + plans from Supabase, loading states, bundled fallback
+│   └── UserContext.jsx       # session, profile (synced to `profiles`), delivery, routing
+├── stores/
+│   └── cart.js               # Zustand cart: items {name, qty, notes}, persisted
+├── lib/
+│   ├── supabase.js           # client (env-driven, publishable key)
+│   ├── auth.js               # Supabase Auth: email+password, phone OTP, Google OAuth
+│   ├── menu.js               # meals/plans fetch + row → UI mapping
+│   ├── importMenu.js         # Master Menu Excel parser (shared by /admin and the seed script)
+│   ├── delivery.js           # SERVICE_AREAS pincode rule (Maps-API-ready shape)
+│   ├── core.js               # palette, categories, filters, WhatsApp order builder
+│   └── storage.js            # namespaced localStorage
+├── screens/                  # Home, Meals (hub + category pages), Subscription (order), Extras, Onboarding, Admin
+└── components/               # ui primitives, meal cards, delivery form, plan compare
+scripts/generate-seed.mjs     # Excel → supabase/migrations SQL
+supabase/migrations/          # schema + RLS + seed
 ```
 
-## Architecture notes
+- **Menu**: Supabase `meals` (only `availability = true` rows are shown).
+  If the database is unreachable or unseeded, the bundled
+  `src/data/dishes.json` keeps the storefront rendering (with a console
+  warning) — Supabase remains the source of truth.
+- **Ordering**: the cart (meals + optional plan + notes) compiles into a
+  single pre-filled `wa.me/919892572408` message including nutrition
+  estimates, subtotal, and the customer's profile details.
+- **Auth**: real Supabase sessions; the profile is upserted to
+  `profiles` (debounced) and restored on any device after sign-in.
+- **PWA**: `manifest.webmanifest` + a minimal service worker
+  (network-first navigation, cache-first images) make the app
+  installable.
 
-- **Authentication** — `src/lib/auth.js` exposes `auth.signInWithEmail/Phone/Google`.
-  The current `LocalAuthProvider` simulates a backend on-device; implement the same
-  `signIn`/`signOut` interface against Firebase or Supabase and swap one constant.
-  Sessions persist in localStorage, so returning users stay signed in and land on
-  the homepage.
-- **Delivery eligibility** — `src/lib/delivery.js#checkDelivery` is async and returns
-  `{ status, freeDelivery, pincode, label, detail }`. Today it's a pincode rule
-  (400102 → free delivery; anything else → confirmed after enquiry); replace the
-  body with a Google Maps Distance Matrix / Places lookup without touching callers.
-- **State & routing** — `src/context/UserContext.jsx` owns session, profile, delivery,
-  selected plan, and the route (stage/tab/step). Everything is persisted, so a
-  refresh resumes mid-onboarding.
-- **Subscriptions** — there is no cart or checkout. Selecting a plan opens the
-  Subscription page; the only CTA is a WhatsApp message pre-filled by
-  `subscriptionEnquiry()` in `core.js` (name, plan, goal, diet preference,
-  delivery, nutritionist reference).
+## Honest-marketing notes
 
-## Before launch — placeholders to replace
+- Nutrition values are kitchen **estimates** for a cooked gym portion;
+  the UI labels them as approximate everywhere.
+- There are no fabricated testimonials, ratings, review counts, or
+  customer statistics in the app. Add real ones only.
 
-1. **Plan pricing** — `PLANS` in `src/lib/core.js` (₹549/₹499/₹449 per meal are placeholders).
-2. **Testimonials & reviews** — `TESTIMONIALS` in `src/lib/core.js` and the review quotes in
-   `src/components/meals.jsx`. Replace with real customer quotes (fabricated reviews are
-   prohibited under Indian consumer-protection rules).
-3. **Carbs/fat figures** — estimated from calories and protein in `macros()` (`src/lib/core.js`),
-   labelled "approx" in the UI. Replace with kitchen-verified grammage values in `dishes.json`.
-4. **Social proof numbers** — "4,800+ customers / 95% renewal" in `src/screens/Home.jsx`;
-   verify before publishing.
-5. **Sign-in** — simulated on-device; wire `src/lib/auth.js` to Firebase Auth or Supabase.
-6. **Delivery radius** — pincode rule only; wire `src/lib/delivery.js` to a distance API.
-7. **Persistence** — profile/plan/delivery live in localStorage; move to a backend
-   when auth goes live.
+## Before launch
 
-## Updating the menu
-
-`src/data/dishes.json` mirrors the master menu spreadsheet (name, cuisine, diet, vegan flag,
-base, side, price, kcal, protein, tags, section, description). Add new dish photos to
-`public/images/meals/` as `<dish-name-slug>.webp` and register them in `src/data/images.js`.
-
-## WhatsApp
-
-The business number lives in `src/lib/core.js` (`WHATSAPP_NUMBER`). All WhatsApp links use
-`wa.me` deep links with pre-filled text — no Business API approval needed.
+1. Confirm plan pricing (`plans` table) and dish pricing with the kitchen.
+2. Configure Google and SMS providers in Supabase if those sign-in
+   methods should work.
+3. Photograph the 9 “Needs photo” dishes and re-import.
+4. Delivery is a pincode rule (`SERVICE_AREAS` in `src/lib/delivery.js`);
+   swap in a Distance Matrix/Places lookup when ready.

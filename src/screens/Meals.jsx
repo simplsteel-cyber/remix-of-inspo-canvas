@@ -1,14 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { C, serif, DISHES, CATS, MENU_CHIPS, FILTER_GROUPS, SORTS } from '../lib/core.js';
+import { C, serif, CATS, MENU_CHIPS, FILTER_GROUPS, SORTS } from '../lib/core.js';
 import { KITCHEN } from '../lib/delivery.js';
 import { MealCard, MiniMealCard } from '../components/meals.jsx';
 import { DeliveryForm, DeliveryStatus } from '../components/delivery.jsx';
-import { BackBtn, Btn, SearchInput, SectionTitle, Sheet, cardStyle } from '../components/ui.jsx';
+import { BackBtn, Btn, SearchInput, SectionTitle, Sheet, Skeleton, cardStyle } from '../components/ui.jsx';
 import { useUser } from '../context/UserContext.jsx';
+import { useMenu } from '../context/MenuContext.jsx';
 import { ChevronRight, SlidersHorizontal, Heart, History } from 'lucide-react';
 
-const dishByName = (name) => DISHES.find((d) => d.name === name);
 const matchesQuery = (d, q) => (d.name + ' ' + d.desc + ' ' + d.cuisine).toLowerCase().includes(q.toLowerCase());
+
+function ListSkeleton() {
+  return (
+    <div className="grid gap-4 mt-4">
+      {[0, 1, 2].map((i) => <Skeleton key={i} className="rounded-3xl" style={{ height: 264 }} />)}
+    </div>
+  );
+}
 
 export function MealsScreen({ openDish }) {
   const { route } = useUser();
@@ -19,6 +27,7 @@ export function MealsScreen({ openDish }) {
 // ── Meals hub — delivery first, then search, shortcuts, categories ──
 function MealsHub({ openDish }) {
   const { go, goBack, delivery, deliverySkipped, skipDeliveryGate, favs, recent } = useUser();
+  const { dishes, menuLoading } = useMenu();
   const [editingDelivery, setEditingDelivery] = useState(false);
   const [q, setQ] = useState('');
 
@@ -26,15 +35,16 @@ function MealsHub({ openDish }) {
   const gated = (!deliveryKnown && !deliverySkipped) || editingDelivery;
 
   const results = useMemo(
-    () => (q.trim() ? DISHES.filter((d) => matchesQuery(d, q.trim())) : []),
-    [q]
+    () => (q.trim() ? dishes.filter((d) => matchesQuery(d, q.trim())) : []),
+    [q, dishes]
   );
-  const favDishes = useMemo(() => favs.map(dishByName).filter(Boolean), [favs]);
-  const recentDishes = useMemo(() => recent.map(dishByName).filter(Boolean), [recent]);
+  const dishByName = (name) => dishes.find((d) => d.name === name);
+  const favDishes = useMemo(() => favs.map(dishByName).filter(Boolean), [favs, dishes]); // eslint-disable-line react-hooks/exhaustive-deps
+  const recentDishes = useMemo(() => recent.map(dishByName).filter(Boolean), [recent, dishes]); // eslint-disable-line react-hooks/exhaustive-deps
   const tiles = useMemo(() => [
-    ['All', DISHES.length],
-    ...MENU_CHIPS.map((c) => [c, DISHES.filter(CATS[c]).length]),
-  ], []);
+    ['All', dishes.length],
+    ...MENU_CHIPS.map((c) => [c, dishes.filter(CATS[c]).length]),
+  ], [dishes]);
 
   // Delivery gate: the first step before browsing meals.
   if (gated) {
@@ -70,7 +80,7 @@ function MealsHub({ openDish }) {
         <SearchInput value={q} onChange={setQ} />
       </div>
 
-      {q.trim() ? (
+      {menuLoading ? <ListSkeleton /> : q.trim() ? (
         <div className="grid gap-4 mt-4">
           <div className="text-xs" role="status" style={{ color: C.mute }}>{results.length} meals for “{q.trim()}”</div>
           {results.map((d) => <MealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
@@ -123,10 +133,11 @@ function MealsHub({ openDish }) {
 }
 
 // ── Dedicated category page — Swiggy/Zomato style ────────────
-const EMPTY_FILTERS = { diet: 'All', cuisine: null, type: null, kcal: null, protein: null, price: null, sort: 'Popularity' };
+const EMPTY_FILTERS = { diet: 'All', cuisine: null, type: null, kcal: null, protein: null, price: null, sort: 'Menu order' };
 
 function CategoryScreen({ openDish }) {
   const { route, goBack } = useUser();
+  const { dishes, menuLoading } = useMenu();
   const cat = route.cat;
   const [q, setQ] = useState('');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -150,7 +161,7 @@ function CategoryScreen({ openDish }) {
 
   const filtered = useMemo(() => {
     const query = q.trim();
-    const list = DISHES.filter((d) => {
+    const list = dishes.filter((d) => {
       if (cat !== 'All' && CATS[cat] && !CATS[cat](d)) return false;
       if (filters.diet === 'Veg' && d.diet !== 'Veg') return false;
       if (filters.diet === 'Non-Veg' && d.diet !== 'Non-Veg') return false;
@@ -162,10 +173,10 @@ function CategoryScreen({ openDish }) {
       return true;
     });
     return [...list].sort(SORTS[filters.sort]);
-  }, [cat, filters, q]);
+  }, [cat, filters, q, dishes]);
 
   const activeCount = ['cuisine', 'type', 'kcal', 'protein', 'price'].filter((g) => filters[g]).length
-    + (filters.diet !== 'All' ? 1 : 0) + (filters.sort !== 'Popularity' ? 1 : 0);
+    + (filters.diet !== 'All' ? 1 : 0) + (filters.sort !== 'Menu order' ? 1 : 0);
   const clearAll = () => { setFilters(EMPTY_FILTERS); setQ(''); };
 
   return (
@@ -203,12 +214,16 @@ function CategoryScreen({ openDish }) {
         </div>
       </div>
 
-      <div className="px-5 grid gap-4 mt-2">
-        {filtered.map((d) => <MealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
-        {filtered.length === 0 && (
-          <div className="rounded-3xl p-8 text-center text-sm" style={{ ...cardStyle, borderStyle: 'dashed', color: C.mute }}>
-            No meals match this combination.
-            <div className="mt-3"><Btn small kind="ghost" onClick={clearAll}>Clear filters</Btn></div>
+      <div className="px-5">
+        {menuLoading ? <ListSkeleton /> : (
+          <div className="grid gap-4 mt-2">
+            {filtered.map((d) => <MealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
+            {filtered.length === 0 && (
+              <div className="rounded-3xl p-8 text-center text-sm" style={{ ...cardStyle, borderStyle: 'dashed', color: C.mute }}>
+                No meals match this combination.
+                <div className="mt-3"><Btn small kind="ghost" onClick={clearAll}>Clear filters</Btn></div>
+              </div>
+            )}
           </div>
         )}
       </div>
