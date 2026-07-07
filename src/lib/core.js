@@ -75,7 +75,6 @@ export const HOME_TILES = ["Chef's Picks", 'High Protein', 'Plant Powered', 'Eve
 // Category cards for the Meals page. `image` is a representative dish
 // name resolved against the bundled photo map (IMG).
 export const CATEGORY_CARDS = [
-  { key: 'Trending', title: 'Trending', subtitle: "This week's most loved", image: 'Healthy Mediterranean Bowl' },
   { key: 'High Protein', title: 'High protein', subtitle: 'Build and recover', image: 'Grilled Chicken Pomodoro' },
   { key: 'Vegan', title: 'Vegan', subtitle: 'Fully plant-based', image: 'Korean Tofu Bowl' },
   { key: 'Seafood', title: 'Seafood', subtitle: 'Omega-rich fish & prawns', image: 'Fish Goan Curry' },

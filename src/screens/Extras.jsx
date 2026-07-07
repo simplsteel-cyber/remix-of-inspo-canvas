@@ -5,17 +5,23 @@ import { DeliveryForm } from '../components/delivery.jsx';
 import { useUser } from '../context/UserContext.jsx';
 import { useMenu } from '../context/MenuContext.jsx';
 import { useCart } from '../stores/cart.js';
-import { MessageCircle, ChevronRight, CheckCircle2, CircleUser, Plus, Minus, Trash2, RefreshCw, HeartPulse } from 'lucide-react';
+import { MessageCircle, ChevronRight, CheckCircle2, CircleUser, Trash2, RefreshCw, HeartPulse } from 'lucide-react';
 
-const SECTION_ORDER = ['Lean & Light', 'Balanced Plates', 'High-Protein Power', 'Vegetarian Favourites', 'Plant-Based & Vegan', 'Other'];
+// The kitchen serves lunch + dinner mains, so each day carries two
+// slots. Meals are laid out across days starting tomorrow.
+const SLOTS = [
+  { label: 'Lunch', bg: '#DFF3E3', color: '#3e6b2f' },
+  { label: 'Dinner', bg: '#E3ECFB', color: '#2f5bb0' },
+];
+const PER_DAY = SLOTS.length;
+const fmtDate = (d) => d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
 
-// ── My Meal Plan — the week's chosen meals, plus BMI + dietitian ──
+// ── My Meal Plan — the week's chosen meals by day, plus BMI + dietitian ──
 export function MealPlanScreen({ openDish }) {
   const { profile, plan, go, payExtras, acknowledgeExtras } = useUser();
   const { dishes } = useMenu();
   const items = useCart((s) => s.items);
   const setQty = useCart((s) => s.setQty);
-  const removeItem = useCart((s) => s.remove);
   const addItem = useCart((s) => s.add);
   const [replacing, setReplacing] = useState(null);
 
@@ -29,17 +35,28 @@ export function MealPlanScreen({ openDish }) {
   );
   const count = cartMealCount(items);
   const overage = planOverage(plan, count);
-  const groups = useMemo(() => {
-    const m = {};
-    for (const l of lines) { const s = l.dish.section || 'Other'; (m[s] = m[s] || []).push(l); }
-    return Object.entries(m).sort((a, b) => SECTION_ORDER.indexOf(a[0]) - SECTION_ORDER.indexOf(b[0]));
+
+  // Expand quantities into meal instances and split across days.
+  const days = useMemo(() => {
+    const instances = [];
+    lines.forEach(({ item, dish }) => { for (let k = 0; k < item.qty; k++) instances.push({ item, dish }); });
+    const out = [];
+    for (let i = 0; i < instances.length; i += PER_DAY) {
+      const d = new Date(); d.setDate(d.getDate() + 1 + out.length);
+      out.push({ date: d, meals: instances.slice(i, i + PER_DAY) });
+    }
+    return out;
   }, [lines]);
+  const rangeLabel = days.length ? `${fmtDate(days[0].date)} – ${fmtDate(days[days.length - 1].date)}` : '';
 
   return (
     <div className="px-5 pt-6 pb-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <BackBtn onClick={() => go('home', null)} />
-        <SectionTitle>My Meal Plan</SectionTitle>
+        <div className="text-right">
+          <SectionTitle>My Meal Plan</SectionTitle>
+          {rangeLabel && <div className="text-xs" style={{ color: C.mute }}>{rangeLabel}</div>}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mt-4">
@@ -74,21 +91,24 @@ export function MealPlanScreen({ openDish }) {
         <OveragePrompt plan={plan} overage={overage} payExtras={payExtras} onAcknowledge={acknowledgeExtras} onChoosePlan={() => go('plans')} />
       )}
 
-      {lines.length === 0 ? (
+      {days.length === 0 ? (
         <div className="rounded-3xl p-8 text-center text-sm mt-4" style={{ ...cardStyle, borderStyle: 'dashed', color: C.mute }}>
           No meals in your plan yet.
           <div className="mt-3"><Btn small onClick={() => go('meals', null)}>Browse meals</Btn></div>
         </div>
       ) : (
-        <div className="mt-5 grid gap-5">
-          {groups.map(([section, rows]) => (
-            <div key={section}>
-              <div className="mb-2" style={{ ...serif, fontSize: 18, fontWeight: 700, color: C.ink }}>{section}</div>
+        <div className="mt-5 grid gap-6">
+          {days.map(({ date, meals }, di) => (
+            <div key={di}>
+              <div className="mb-2.5" style={{ ...serif, fontSize: 20, fontWeight: 700, color: C.ink }}>
+                {di === 0 ? 'Tomorrow' : date.toLocaleDateString('en-IN', { weekday: 'long' })}, {fmtDate(date)}
+              </div>
               <div className="grid gap-2.5">
-                {rows.map(({ item, dish }) => (
-                  <PlanMealRow key={dish.name} item={item} dish={dish} onOpen={() => openDish(dish)}
-                    onInc={() => setQty(dish.name, item.qty + 1)} onDec={() => setQty(dish.name, item.qty - 1)}
-                    onRemove={() => removeItem(dish.name)} onReplace={() => setReplacing(dish)} />
+                {meals.map(({ item, dish }, mi) => (
+                  <DayMealRow key={dish.name + '-' + di + '-' + mi} slot={SLOTS[mi % SLOTS.length]} dish={dish}
+                    onOpen={() => openDish(dish)}
+                    onRemove={() => setQty(dish.name, item.qty - 1)}
+                    onReplace={() => setReplacing({ dish, item })} />
                 ))}
               </div>
             </div>
@@ -96,37 +116,32 @@ export function MealPlanScreen({ openDish }) {
         </div>
       )}
 
-      <div className="mt-5 grid gap-2">
+      <div className="mt-6 grid gap-2">
         <Btn kind="ghost" onClick={() => go('meals', null)}>+ Add more meals</Btn>
-        {lines.length > 0 && <Btn onClick={() => go('orders')}>Review &amp; order</Btn>}
+        {days.length > 0 && <Btn onClick={() => go('orders')}>Review &amp; order</Btn>}
       </div>
 
       {replacing && (
-        <ReplaceSheet dish={replacing} dishes={dishes} onClose={() => setReplacing(null)}
-          onPick={(next) => { removeItem(replacing.name); addItem(next.name); setReplacing(null); }} />
+        <ReplaceSheet dish={replacing.dish} dishes={dishes} onClose={() => setReplacing(null)}
+          onPick={(next) => { setQty(replacing.dish.name, replacing.item.qty - 1); addItem(next.name); setReplacing(null); }} />
       )}
     </div>
   );
 }
 
-function PlanMealRow({ item, dish, onOpen, onInc, onDec, onRemove, onReplace }) {
+function DayMealRow({ slot, dish, onOpen, onRemove, onReplace }) {
   return (
     <div className="rounded-2xl p-2.5 flex items-center gap-3" style={cardStyle}>
       <button type="button" onClick={onOpen} className="flex-none" aria-label={`Open ${dish.name}`}>
-        <Img dish={dish} className="rounded-xl" style={{ width: 60, height: 60 }} />
+        <Img dish={dish} className="rounded-xl" style={{ width: 64, height: 64 }} />
       </button>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
+        <span className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full" style={{ background: slot.bg, color: slot.color }}>{slot.label}</span>
+        <div className="flex items-center gap-1.5 mt-1">
           <DietDot diet={dish.diet} vegan={dish.vegan} />
           <span className="text-sm font-medium truncate" style={{ color: C.ink }}>{dish.name}</span>
         </div>
-        <div className="text-xs mt-0.5" style={{ color: C.mute }}>{dish.protein ?? '—'}g protein · {priceOf(dish) ? inr(priceOf(dish)) : '—'}</div>
-        <div className="flex items-center gap-3 mt-1.5">
-          <span className="inline-flex items-center gap-2 rounded-full px-1.5 py-0.5" style={{ background: C.mint }}>
-            <button type="button" aria-label={`Remove one ${dish.name}`} onClick={onDec} className="p-0.5"><Minus size={12} color="#3e6b2f" /></button>
-            <span className="text-xs font-semibold" style={{ color: '#3e6b2f' }}>{item.qty}</span>
-            <button type="button" aria-label={`Add one ${dish.name}`} onClick={onInc} className="p-0.5"><Plus size={12} color="#3e6b2f" /></button>
-          </span>
+        <div className="flex items-center gap-3 mt-1">
           <button type="button" onClick={onReplace} className="text-xs font-medium inline-flex items-center gap-1" style={{ color: C.mute }}><RefreshCw size={12} /> Replace</button>
           <button type="button" onClick={onRemove} className="text-xs font-medium inline-flex items-center gap-1" style={{ color: C.mute }}><Trash2 size={12} /> Remove</button>
         </div>
