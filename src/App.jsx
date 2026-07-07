@@ -1,15 +1,17 @@
-import React, { Suspense, lazy, useState } from 'react';
-import { C, sans, serif, waLink } from './lib/core.js';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { C, sans, serif, waLink, cartMealCount, planOverage } from './lib/core.js';
 import { useUser } from './context/UserContext.jsx';
+import { useMenu } from './context/MenuContext.jsx';
 import { useCart, cartCount } from './stores/cart.js';
+import { makeDebouncedNotifier } from './lib/notify.js';
 import { Welcome, Register, RegisterSuccess, Onboarding } from './screens/Onboarding.jsx';
 import { HomeScreen } from './screens/Home.jsx';
 import { MealsScreen } from './screens/Meals.jsx';
 import { SubscriptionScreen } from './screens/Subscription.jsx';
-import { NutritionScreen, AccountScreen } from './screens/Extras.jsx';
+import { MealPlanScreen, AccountScreen } from './screens/Extras.jsx';
 import { MealDetail } from './components/meals.jsx';
 import { Skeleton } from './components/ui.jsx';
-import { Home, UtensilsCrossed, ShoppingBag, HeartPulse, CircleUser, MessageCircle } from 'lucide-react';
+import { Home, UtensilsCrossed, ShoppingBag, CalendarDays, CircleUser, MessageCircle } from 'lucide-react';
 
 // The admin surface (and its Excel parser) loads only when visited.
 const AdminScreen = lazy(() => import('./screens/Admin.jsx').then((m) => ({ default: m.AdminScreen })));
@@ -18,7 +20,7 @@ const TABS = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'meals', label: 'Meals', icon: UtensilsCrossed },
   { id: 'orders', label: 'Order', icon: ShoppingBag },
-  { id: 'nutrition', label: 'Nutrition', icon: HeartPulse },
+  { id: 'nutrition', label: 'My Plan', icon: CalendarDays },
   { id: 'account', label: 'Account', icon: CircleUser },
 ];
 
@@ -34,13 +36,34 @@ function BootScreen() {
 }
 
 export default function App() {
-  const { booting, route, go, trackViewed } = useUser();
+  const { booting, route, go, trackViewed, user, profile, plan, payExtras } = useUser();
+  const { dishes } = useMenu();
   const items = useCart((s) => s.items);
   const { stage, tab } = route;
 
   // Transient UI state — deliberately not persisted.
   const [detail, setDetail] = useState(null);
   const openDish = (dish) => { trackViewed(dish.name); setDetail(dish); };
+
+  // Notify the kitchen when a user finishes selecting/editing their
+  // meals or plan (debounced). A short arming window after boot / a
+  // fresh login suppresses notifications caused by hydration, so only
+  // genuine user edits send an email.
+  const notify = useRef(makeDebouncedNotifier());
+  const armAt = useRef(0);
+  useEffect(() => { armAt.current = Date.now() + 3500; }, [booting, user]);
+  useEffect(() => {
+    if (booting || Date.now() < armAt.current) return;
+    const enriched = items.map((i) => {
+      const d = dishes.find((x) => x.name === i.name) || {};
+      return { ...i, kcal: d.kcal ?? null, protein: d.protein ?? null };
+    });
+    const extra = planOverage(plan, cartMealCount(items));
+    notify.current({
+      event: 'meal_plan_updated', user, profile, plan, items: enriched,
+      overage: extra ? { extra, payExtras } : null,
+    });
+  }, [items, plan, payExtras, booting, user, profile, dishes]);
 
   // /admin is its own surface, outside the customer shell.
   if (window.location.pathname.replace(/\/+$/, '') === '/admin') {
@@ -51,7 +74,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex justify-center" style={{ background: '#EFEFEC', ...sans }}>
-      <div className="w-full max-w-md min-h-screen relative" style={{ background: C.warm }}>
+      <div className="w-full max-w-md min-h-screen relative overflow-x-hidden" style={{ background: C.warm }}>
         {booting ? <BootScreen /> : (<>
           {stage === 'welcome' && <Welcome />}
           {stage === 'register' && <Register />}
@@ -70,7 +93,7 @@ export default function App() {
               {tab === 'home' && <HomeScreen openDish={openDish} />}
               {tab === 'meals' && <MealsScreen openDish={openDish} />}
               {tab === 'orders' && <SubscriptionScreen />}
-              {tab === 'nutrition' && <NutritionScreen />}
+              {tab === 'nutrition' && <MealPlanScreen openDish={openDish} />}
               {tab === 'account' && <AccountScreen />}
             </main>
 

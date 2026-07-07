@@ -39,7 +39,7 @@ function CartLine({ item, dish }) {
 }
 
 export function SubscriptionScreen() {
-  const { plan, profile, delivery, choosePlan, clearPlan, go, goBack, user, setStage } = useUser();
+  const { plan, profile, delivery, choosePlan, clearPlan, go, goBack, user, setStage, payExtras, acknowledgeExtras } = useUser();
   const { dishes, plans } = useMenu();
   const items = useCart((s) => s.items);
   const clearCart = useCart((s) => s.clear);
@@ -54,8 +54,10 @@ export function SubscriptionScreen() {
     () => lines.reduce((s, { item, dish }) => s + (dish ? (priceOf(dish) || 0) : 0) * item.qty, 0),
     [lines]
   );
+  const mealCount = items.reduce((s, i) => s + i.qty, 0);
+  const overage = plan && mealCount > plan.meals ? mealCount - plan.meals : 0;
   const message = orderEnquiry({
-    profile, plan, delivery,
+    profile, plan, delivery, payExtras,
     items: lines.filter(({ dish }) => dish).map(({ item, dish }) => ({ dish, qty: item.qty, notes: item.notes })),
   });
   const empty = !plan && items.length === 0;
@@ -145,6 +147,19 @@ export function SubscriptionScreen() {
           style={{ background: '#fff', border: `1px dashed ${C.line}`, color: C.mute }}>
           + Add individual meals (optional)
         </button>
+      )}
+
+      {overage > 0 && (
+        <div className="rounded-2xl p-4 mt-4" role="alert" style={{ background: '#FDF3E7', border: '1px solid #F8DCB8' }}>
+          <div className="text-sm font-semibold" style={{ color: '#b06c22' }}>{overage} meal{overage > 1 ? 's' : ''} over your {plan.name}</div>
+          <p className="text-xs mt-1" style={{ color: '#b06c22' }}>Your plan includes {plan.meals} meals. Choose a bigger plan, or keep these and pay for the extras.</p>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <Btn small kind="ghost" onClick={() => go('plans')}>Change plan</Btn>
+            {payExtras
+              ? <span className="inline-flex items-center justify-center gap-1 text-xs font-semibold rounded-full px-3 py-2" style={{ background: C.mint, color: '#3e6b2f' }}><CheckCircle2 size={13} /> Paying for extras</span>
+              : <Btn small onClick={acknowledgeExtras}>Pay for extras</Btn>}
+          </div>
+        </div>
       )}
 
       {delivery && <div className="mt-4"><DeliveryStatus delivery={delivery} /></div>}

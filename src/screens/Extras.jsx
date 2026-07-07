@@ -1,52 +1,182 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { C, serif, waLink } from '../lib/core.js';
-import { BackBtn, Btn, Field, inputStyle, Required, SectionTitle, cardStyle } from '../components/ui.jsx';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { C, serif, inr, priceOf, waLink, cartMealCount, planOverage } from '../lib/core.js';
+import { BackBtn, Btn, DietDot, Field, Img, inputStyle, Required, SectionTitle, Sheet, cardStyle } from '../components/ui.jsx';
 import { DeliveryForm } from '../components/delivery.jsx';
 import { useUser } from '../context/UserContext.jsx';
-import { MessageCircle, Droplets, ChevronRight, CheckCircle2, CircleUser } from 'lucide-react';
+import { useMenu } from '../context/MenuContext.jsx';
+import { useCart } from '../stores/cart.js';
+import { MessageCircle, ChevronRight, CheckCircle2, CircleUser, Plus, Minus, Trash2, RefreshCw, HeartPulse } from 'lucide-react';
 
-export function NutritionScreen() {
-  const { profile, goBack } = useUser();
+const SECTION_ORDER = ['Lean & Light', 'Balanced Plates', 'High-Protein Power', 'Vegetarian Favourites', 'Plant-Based & Vegan', 'Other'];
+
+// ── My Meal Plan — the week's chosen meals, plus BMI + dietitian ──
+export function MealPlanScreen({ openDish }) {
+  const { profile, plan, go, payExtras, acknowledgeExtras } = useUser();
+  const { dishes } = useMenu();
+  const items = useCart((s) => s.items);
+  const setQty = useCart((s) => s.setQty);
+  const removeItem = useCart((s) => s.remove);
+  const addItem = useCart((s) => s.add);
+  const [replacing, setReplacing] = useState(null);
+
   const h = parseFloat(profile.height), w = parseFloat(profile.weight);
   const bmi = h > 0 && w > 0 ? w / Math.pow(h / 100, 2) : null;
-  const bmiLabel = bmi == null ? 'Add height and weight in Account' : bmi < 18.5 ? 'Underweight range' : bmi < 25 ? 'Healthy range' : bmi < 30 ? 'Overweight range' : 'Obese range';
-  const [glasses, setGlasses] = useState(0);
+  const bmiLabel = bmi == null ? 'Add height & weight' : bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Healthy range' : bmi < 30 ? 'Overweight' : 'Obese range';
+
+  const lines = useMemo(
+    () => items.map((i) => ({ item: i, dish: dishes.find((d) => d.name === i.name) })).filter((x) => x.dish),
+    [items, dishes]
+  );
+  const count = cartMealCount(items);
+  const overage = planOverage(plan, count);
+  const groups = useMemo(() => {
+    const m = {};
+    for (const l of lines) { const s = l.dish.section || 'Other'; (m[s] = m[s] || []).push(l); }
+    return Object.entries(m).sort((a, b) => SECTION_ORDER.indexOf(a[0]) - SECTION_ORDER.indexOf(b[0]));
+  }, [lines]);
+
   return (
-    <div className="px-5 pt-6 pb-6 grid gap-4">
+    <div className="px-5 pt-6 pb-6">
       <div className="flex items-center justify-between gap-3">
-        <BackBtn onClick={goBack} />
-        <SectionTitle>Nutrition</SectionTitle>
+        <BackBtn onClick={() => go('home', null)} />
+        <SectionTitle>My Meal Plan</SectionTitle>
       </div>
-      <div className="rounded-3xl p-5 flex items-center justify-between" style={{ background: C.mint }}>
-        <div>
+
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        <div className="rounded-2xl p-4" style={{ background: C.mint }}>
           <div className="text-xs font-medium" style={{ color: '#3e6b2f' }}>Your BMI</div>
-          <div className="text-3xl font-semibold" style={{ color: C.ink }}>{bmi ? bmi.toFixed(1) : '—'}</div>
+          <div className="text-2xl font-semibold" style={{ color: C.ink }}>{bmi ? bmi.toFixed(1) : '—'}</div>
+          <div className="text-xs" style={{ color: '#3e6b2f' }}>{bmiLabel} · a guide, not a diagnosis</div>
         </div>
-        <div className="text-xs text-right" style={{ color: '#3e6b2f' }}>{bmiLabel}<br />A guide, not a diagnosis</div>
-      </div>
-      <div className="rounded-3xl p-5" style={cardStyle}>
-        <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: C.ink }}><Droplets size={17} color={C.sage} strokeWidth={1.8} /> Water today</div>
-        <div className="flex gap-1.5 mt-3">
-          {[...Array(8)].map((_, i) => (
-            <button key={i} type="button" aria-label={`Glass ${i + 1}`} aria-pressed={i < glasses} onClick={() => setGlasses(i + 1 === glasses ? i : i + 1)} className="flex-1 h-9 rounded-lg transition-all"
-              style={{ background: i < glasses ? C.sage : C.grey }} />
-          ))}
-        </div>
-        <div className="text-xs mt-2" style={{ color: C.mute }}>{glasses}/8 glasses</div>
-      </div>
-      <div className="rounded-3xl p-5" style={cardStyle}>
-        <div className="text-sm font-semibold" style={{ color: C.ink }}>Talk to a dietitian</div>
-        <p className="text-sm mt-1" style={{ color: C.mute }}>Book a consultation to match your plan to your goal, allergies, and routine.</p>
         <a href={waLink(`Hi Lean Kitchen! I'd like to book a dietitian consultation.${profile.name ? ' I\'m ' + profile.name + '.' : ''}${profile.goal ? ' Goal: ' + profile.goal + '.' : ''}`)}
-          target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-3 text-sm font-semibold py-1" style={{ color: C.wa }}>
-          <MessageCircle size={16} /> Book on WhatsApp
+          target="_blank" rel="noreferrer" className="rounded-2xl p-4 flex flex-col justify-between" style={cardStyle}>
+          <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: C.ink }}><HeartPulse size={16} color={C.sage} strokeWidth={1.8} /> Dietitian</div>
+          <span className="text-xs font-semibold inline-flex items-center gap-1 mt-2" style={{ color: C.wa }}><MessageCircle size={13} /> Book a consult</span>
         </a>
       </div>
-      <div className="text-xs" style={{ color: C.mute }}>Full tracking — food log, weight, progress — arrives in the next release.</div>
+
+      {plan ? (
+        <div className="rounded-2xl px-4 py-3 mt-3 flex items-center justify-between gap-2" style={cardStyle}>
+          <div>
+            <div className="text-sm font-semibold" style={{ color: C.ink }}>{plan.name}</div>
+            <div className="text-xs" style={{ color: overage ? '#b06c22' : C.mute }}>{count} of {plan.meals} meals selected{overage ? ` · ${overage} over plan` : ''}</div>
+          </div>
+          <button type="button" onClick={() => go('plans')} className="text-xs font-medium flex-none" style={{ color: '#3e6b2f' }}>Change plan</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => go('plans')} className="rounded-2xl px-4 py-3 mt-3 w-full text-left text-sm font-medium"
+          style={{ background: '#fff', border: `1px dashed ${C.sage}`, color: '#3e6b2f' }}>
+          + Choose a subscription plan
+        </button>
+      )}
+
+      {overage > 0 && (
+        <OveragePrompt plan={plan} overage={overage} payExtras={payExtras} onAcknowledge={acknowledgeExtras} onChoosePlan={() => go('plans')} />
+      )}
+
+      {lines.length === 0 ? (
+        <div className="rounded-3xl p-8 text-center text-sm mt-4" style={{ ...cardStyle, borderStyle: 'dashed', color: C.mute }}>
+          No meals in your plan yet.
+          <div className="mt-3"><Btn small onClick={() => go('meals', null)}>Browse meals</Btn></div>
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-5">
+          {groups.map(([section, rows]) => (
+            <div key={section}>
+              <div className="mb-2" style={{ ...serif, fontSize: 18, fontWeight: 700, color: C.ink }}>{section}</div>
+              <div className="grid gap-2.5">
+                {rows.map(({ item, dish }) => (
+                  <PlanMealRow key={dish.name} item={item} dish={dish} onOpen={() => openDish(dish)}
+                    onInc={() => setQty(dish.name, item.qty + 1)} onDec={() => setQty(dish.name, item.qty - 1)}
+                    onRemove={() => removeItem(dish.name)} onReplace={() => setReplacing(dish)} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-2">
+        <Btn kind="ghost" onClick={() => go('meals', null)}>+ Add more meals</Btn>
+        {lines.length > 0 && <Btn onClick={() => go('orders')}>Review &amp; order</Btn>}
+      </div>
+
+      {replacing && (
+        <ReplaceSheet dish={replacing} dishes={dishes} onClose={() => setReplacing(null)}
+          onPick={(next) => { removeItem(replacing.name); addItem(next.name); setReplacing(null); }} />
+      )}
     </div>
   );
 }
 
+function PlanMealRow({ item, dish, onOpen, onInc, onDec, onRemove, onReplace }) {
+  return (
+    <div className="rounded-2xl p-2.5 flex items-center gap-3" style={cardStyle}>
+      <button type="button" onClick={onOpen} className="flex-none" aria-label={`Open ${dish.name}`}>
+        <Img dish={dish} className="rounded-xl" style={{ width: 60, height: 60 }} />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <DietDot diet={dish.diet} vegan={dish.vegan} />
+          <span className="text-sm font-medium truncate" style={{ color: C.ink }}>{dish.name}</span>
+        </div>
+        <div className="text-xs mt-0.5" style={{ color: C.mute }}>{dish.protein ?? '—'}g protein · {priceOf(dish) ? inr(priceOf(dish)) : '—'}</div>
+        <div className="flex items-center gap-3 mt-1.5">
+          <span className="inline-flex items-center gap-2 rounded-full px-1.5 py-0.5" style={{ background: C.mint }}>
+            <button type="button" aria-label={`Remove one ${dish.name}`} onClick={onDec} className="p-0.5"><Minus size={12} color="#3e6b2f" /></button>
+            <span className="text-xs font-semibold" style={{ color: '#3e6b2f' }}>{item.qty}</span>
+            <button type="button" aria-label={`Add one ${dish.name}`} onClick={onInc} className="p-0.5"><Plus size={12} color="#3e6b2f" /></button>
+          </span>
+          <button type="button" onClick={onReplace} className="text-xs font-medium inline-flex items-center gap-1" style={{ color: C.mute }}><RefreshCw size={12} /> Replace</button>
+          <button type="button" onClick={onRemove} className="text-xs font-medium inline-flex items-center gap-1" style={{ color: C.mute }}><Trash2 size={12} /> Remove</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OveragePrompt({ plan, overage, payExtras, onAcknowledge, onChoosePlan }) {
+  return (
+    <div className="rounded-2xl p-4 mt-3" role="alert" style={{ background: '#FDF3E7', border: '1px solid #F8DCB8' }}>
+      <div className="text-sm font-semibold" style={{ color: '#b06c22' }}>Over your {plan.name} by {overage} meal{overage > 1 ? 's' : ''}</div>
+      <p className="text-xs mt-1" style={{ color: '#b06c22' }}>
+        Your plan includes {plan.meals} meals. Choose a bigger plan, or keep these and pay for the extra meals.
+      </p>
+      <div className="grid grid-cols-2 gap-2 mt-3">
+        <Btn small kind="ghost" onClick={onChoosePlan}>Change plan</Btn>
+        {payExtras
+          ? <span className="inline-flex items-center justify-center gap-1 text-xs font-semibold rounded-full px-3 py-2" style={{ background: C.mint, color: '#3e6b2f' }}><CheckCircle2 size={13} /> Paying for extras</span>
+          : <Btn small onClick={onAcknowledge}>Pay for extras</Btn>}
+      </div>
+    </div>
+  );
+}
+
+function ReplaceSheet({ dish, dishes, onClose, onPick }) {
+  const options = dishes.filter((d) => d.name !== dish.name && (d.section === dish.section || d.diet === dish.diet)).slice(0, 30);
+  return (
+    <Sheet onClose={onClose} label={`Replace ${dish.name}`}>
+      <div className="p-5 pb-8">
+        <h2 style={{ ...serif, fontSize: 22, fontWeight: 700, color: C.ink }}>Replace “{dish.name}”</h2>
+        <p className="text-sm mt-1 mb-4" style={{ color: C.mute }}>Pick a similar meal to swap in.</p>
+        <div className="grid gap-2">
+          {options.map((d) => (
+            <button key={d.name} type="button" onClick={() => onPick(d)} className="flex items-center gap-3 rounded-2xl p-2.5 text-left" style={cardStyle}>
+              <Img dish={d} className="rounded-xl flex-none" style={{ width: 48, height: 48 }} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5"><DietDot diet={d.diet} vegan={d.vegan} /><span className="text-sm font-medium truncate" style={{ color: C.ink }}>{d.name}</span></div>
+                <div className="text-xs" style={{ color: C.mute }}>{d.protein ?? '—'}g protein · {priceOf(d) ? inr(priceOf(d)) : '—'}</div>
+              </div>
+            </button>
+          ))}
+          {options.length === 0 && <div className="text-sm text-center py-6" style={{ color: C.mute }}>No similar meals available.</div>}
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+// ── Account — editable profile with auto-save ────────────────
 const GOALS = ['Weight loss', 'Muscle gain', 'Everyday wellness', 'Athletic performance'];
 const DIET_PREFS = ['No preference', 'Vegetarian', 'Non-vegetarian', 'Vegan'];
 
@@ -159,7 +289,7 @@ export function AccountScreen() {
       </div>
 
       <Btn kind="ghost" busy={signingOut} onClick={async () => { setSigningOut(true); await signOut(); }}>Sign out</Btn>
-      <div className="text-xs text-center" style={{ color: C.mute }}>Your profile is saved on this device.</div>
+      <div className="text-xs text-center" style={{ color: C.mute }}>Your profile is saved to your account.</div>
     </div>
   );
 }

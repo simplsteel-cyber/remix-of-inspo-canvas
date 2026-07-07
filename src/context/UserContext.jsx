@@ -3,6 +3,8 @@ import { auth } from '../lib/auth.js';
 import { supabase } from '../lib/supabase.js';
 import { checkDelivery } from '../lib/delivery.js';
 import { storage } from '../lib/storage.js';
+import { loadMealPlan, saveMealPlan } from '../lib/mealPlan.js';
+import { useCart } from '../stores/cart.js';
 import { useMenu } from './MenuContext.jsx';
 
 // ─────────────────────────────────────────────────────────────
@@ -48,19 +50,30 @@ export function UserProvider({ children }) {
   const [favs, setFavs] = useState([]);
   const [recent, setRecent] = useState([]);
   const [deliverySkipped, setDeliverySkipped] = useState(false);
+  const [payExtras, setPayExtras] = useState(false);
   const [route, setRoute] = useState(HOME);
+  const cartItems = useCart((s) => s.items);
   const userRef = useRef(null);
   const profileSynced = useRef(false);
+  const planLoaded = useRef(false);
 
   const plan = plans.find((p) => p.id === planId) || null;
 
-  // Pull the server profile and decide where a fresh sign-in lands.
+  // Pull the server profile + saved meal plan, and decide where a
+  // fresh sign-in lands.
   const onFreshSignIn = useCallback(async (u, { redirect } = { redirect: true }) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', u.id).maybeSingle();
     if (!error && data) {
       setIsAdmin(data.role === 'admin');
       if (data.name) setProfile((p) => ({ ...p, ...fromDbProfile(data) }));
     }
+    const mp = await loadMealPlan(u.id);
+    if (mp) {
+      useCart.setState({ items: mp.items || [] });
+      setPlanId(mp.planId || null);
+      setPayExtras(!!mp.payExtras);
+    }
+    planLoaded.current = true;
     profileSynced.current = true;
     if (redirect) setRoute(data?.name ? HOME : { ...HOME, stage: 'register' });
   }, []);
@@ -75,6 +88,7 @@ export function UserProvider({ children }) {
       setFavs(storage.get('favs', []));
       setRecent(storage.get('recent', []));
       setDeliverySkipped(storage.get('deliverySkipped', false));
+      setPayExtras(storage.get('payExtras', false));
 
       const u = await auth.getSession();
       if (u) {
@@ -107,7 +121,16 @@ export function UserProvider({ children }) {
   useEffect(() => { if (!booting) storage.set('favs', favs); }, [booting, favs]);
   useEffect(() => { if (!booting) storage.set('recent', recent); }, [booting, recent]);
   useEffect(() => { if (!booting) storage.set('deliverySkipped', deliverySkipped); }, [booting, deliverySkipped]);
+  useEffect(() => { if (!booting) storage.set('payExtras', payExtras); }, [booting, payExtras]);
   useEffect(() => { if (!booting && user) storage.set('route', route); }, [booting, user, route]);
+
+  // Save the meal plan (chosen meals + plan + pay-extras) to Supabase,
+  // debounced, once signed in and hydrated.
+  useEffect(() => {
+    if (booting || !user || !planLoaded.current) return;
+    const t = setTimeout(() => { saveMealPlan(user.id, { items: cartItems, planId, payExtras }); }, 800);
+    return () => clearTimeout(t);
+  }, [booting, user, cartItems, planId, payExtras]);
 
   // Sync the profile to Supabase, debounced, once signed in.
   useEffect(() => {
@@ -120,7 +143,7 @@ export function UserProvider({ children }) {
   }, [booting, user, profile]);
 
   const value = {
-    booting, user, isAdmin, profile, delivery, plan, route, favs, recent, deliverySkipped,
+    booting, user, isAdmin, profile, delivery, plan, route, favs, recent, deliverySkipped, payExtras,
 
     // Authentication (see lib/auth.js for provider details)
     signInWithEmail: (email, password) => auth.signInWithEmail(email, password),
@@ -129,9 +152,11 @@ export function UserProvider({ children }) {
     signInWithGoogle: () => auth.signInWithGoogle(),
     signOut: async () => {
       await auth.signOut();
-      ['profile', 'delivery', 'planId', 'route', 'favs', 'recent', 'deliverySkipped'].forEach((k) => storage.remove(k));
+      ['profile', 'delivery', 'planId', 'route', 'favs', 'recent', 'deliverySkipped', 'payExtras'].forEach((k) => storage.remove(k));
       userRef.current = null;
       profileSynced.current = false;
+      planLoaded.current = false;
+      useCart.getState().clear();
       setUser(null);
       setIsAdmin(false);
       setProfile(EMPTY_PROFILE);
@@ -140,6 +165,7 @@ export function UserProvider({ children }) {
       setFavs([]);
       setRecent([]);
       setDeliverySkipped(false);
+      setPayExtras(false);
       setRoute(HOME);
     },
 
@@ -156,12 +182,15 @@ export function UserProvider({ children }) {
     toggleFav: (name) => setFavs((f) => (f.includes(name) ? f.filter((n) => n !== name) : [name, ...f])),
     trackViewed: (name) => setRecent((r) => [name, ...r.filter((n) => n !== name)].slice(0, 10)),
 
-    // Plans — selecting one opens the order page.
+    // Plans — selecting one opens the order page. A new plan resets
+    // any prior agreement to pay for extra meals.
     choosePlan: (p) => {
       setPlanId(p.id);
+      setPayExtras(false);
       setRoute({ ...HOME, tab: 'orders' });
     },
-    clearPlan: () => setPlanId(null),
+    clearPlan: () => { setPlanId(null); setPayExtras(false); },
+    acknowledgeExtras: () => setPayExtras(true),
 
     // Routing. 'plans' is a virtual target: the Plans section of Home.
     go: (tab, cat) => setRoute((r) => ({

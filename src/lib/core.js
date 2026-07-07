@@ -72,6 +72,23 @@ export const CATS = {
 export const MENU_CHIPS = ['Trending', 'High Protein', 'Vegan', 'Bowls', 'Chicken', 'Seafood', 'Indian', 'Continental', 'Asian'];
 export const HOME_TILES = ["Chef's Picks", 'High Protein', 'Plant Powered', 'Everyday Wellness', 'Performance', 'Mediterranean', 'Indian Classics', 'Asian Bowls'];
 
+// Category cards for the Meals page. `image` is a representative dish
+// name resolved against the bundled photo map (IMG).
+export const CATEGORY_CARDS = [
+  { key: 'Trending', title: 'Trending', subtitle: "This week's most loved", image: 'Healthy Mediterranean Bowl' },
+  { key: 'High Protein', title: 'High protein', subtitle: 'Build and recover', image: 'Grilled Chicken Pomodoro' },
+  { key: 'Vegan', title: 'Vegan', subtitle: 'Fully plant-based', image: 'Korean Tofu Bowl' },
+  { key: 'Seafood', title: 'Seafood', subtitle: 'Omega-rich fish & prawns', image: 'Fish Goan Curry' },
+  { key: 'Chicken', title: 'Chicken', subtitle: 'Lean, high-protein mains', image: 'Kadai Chicken' },
+  { key: 'Indian', title: 'Indian', subtitle: 'Regional home-style plates', image: 'Paneer Do Piyaza' },
+  { key: 'Continental', title: 'Continental', subtitle: 'Grills, pasta & bowls', image: 'Seared Seabass Creamy Basil Sauce' },
+  { key: 'Asian', title: 'Asian', subtitle: 'Wok-tossed & aromatic', image: 'Black Pepper Paneer' },
+];
+
+// Meal counting + plan-allowance overage.
+export const cartMealCount = (items) => items.reduce((s, i) => s + (i.qty || 1), 0);
+export const planOverage = (plan, count) => (plan && count > plan.meals ? count - plan.meals : 0);
+
 // Some dishes carry '500/750' (two portion prices) or '' — take the base price.
 export const priceOf = (d) => parseInt(d.price, 10) || null;
 
@@ -157,9 +174,10 @@ export const recommendDishes = (profile = {}, dishes = [], limit = 6) => {
 
 // ── WhatsApp order builder — the entire "checkout" ───────────
 // Cart items: [{ dish, qty, notes }]
-export const orderEnquiry = ({ profile = {}, plan = null, items = [], delivery = null }) => {
+export const orderEnquiry = ({ profile = {}, plan = null, items = [], delivery = null, payExtras = false }) => {
   const where = [profile.deliveryAddress, delivery?.pincode && `PIN ${delivery.pincode}`].filter(Boolean).join(' · ');
   const subtotal = items.reduce((s, { dish, qty }) => s + (priceOf(dish) || 0) * qty, 0);
+  const count = items.reduce((s, { qty }) => s + qty, 0);
 
   const lines = ['Hi Lean Kitchen! I would like to place an order.'];
   if (plan) lines.push('', `Plan: ${plan.name} — ${plan.meals} meals at ${inr(plan.perMeal)}/meal (est. ${inr(plan.meals * plan.perMeal)})`);
@@ -170,6 +188,10 @@ export const orderEnquiry = ({ profile = {}, plan = null, items = [], delivery =
       lines.push(`${i + 1}. ${dish.name} x${qty}${price ? ` — ${inr(price * qty)}` : ''} (${dish.kcal ?? '?'} kcal · ${dish.protein ?? '?'}g protein, approx)${notes ? ` — note: ${notes}` : ''}`);
     });
     lines.push(`Meals subtotal: ${inr(subtotal)}`);
+  }
+  if (plan && count > plan.meals) {
+    const extra = count - plan.meals;
+    lines.push('', `Note: ${extra} meal(s) beyond the ${plan.name} allowance of ${plan.meals}. ${payExtras ? 'I will pay for the extra meals.' : 'Please advise on upgrading or extra-meal pricing.'}`);
   }
   const details = [
     profile.name && `Name: ${profile.name}`,

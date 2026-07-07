@@ -1,14 +1,37 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { C, serif, CATS, MENU_CHIPS, FILTER_GROUPS, SORTS } from '../lib/core.js';
+import { C, serif, CATS, FILTER_GROUPS, SORTS, CATEGORY_CARDS } from '../lib/core.js';
 import { KITCHEN } from '../lib/delivery.js';
+import { IMG } from '../data/images.js';
 import { MealCard, MiniMealCard } from '../components/meals.jsx';
 import { DeliveryForm, DeliveryStatus } from '../components/delivery.jsx';
 import { BackBtn, Btn, SearchInput, SectionTitle, Sheet, Skeleton, cardStyle } from '../components/ui.jsx';
 import { useUser } from '../context/UserContext.jsx';
 import { useMenu } from '../context/MenuContext.jsx';
-import { ChevronRight, SlidersHorizontal, Heart, History } from 'lucide-react';
+import { SlidersHorizontal, Heart, History, ArrowUpRight } from 'lucide-react';
 
 const matchesQuery = (d, q) => (d.name + ' ' + d.desc + ' ' + d.cuisine).toLowerCase().includes(q.toLowerCase());
+
+// Large image-led category card, styled after the Diet reference.
+function CategoryCard({ title, subtitle, image, count, onClick }) {
+  const src = image && IMG[image];
+  return (
+    <button type="button" onClick={onClick} className="w-full rounded-3xl overflow-hidden text-left flex items-stretch"
+      style={{ ...cardStyle, minHeight: 118 }}>
+      <div className="flex-1 p-4 flex flex-col">
+        <div style={{ ...serif, fontSize: 21, fontWeight: 700, color: C.ink }}>{title}</div>
+        <div className="text-xs mt-0.5" style={{ color: C.mute }}>{subtitle}{typeof count === 'number' ? ` · ${count} dishes` : ''}</div>
+        <span className="text-xs font-semibold mt-auto pt-3 inline-flex items-center gap-1" style={{ color: '#3e6b2f' }}>
+          View meals <ArrowUpRight size={13} />
+        </span>
+      </div>
+      <div className="w-32 flex-none" aria-hidden="true">
+        {src
+          ? <img src={src} alt="" className="w-full h-full" style={{ objectFit: 'cover' }} loading="lazy" />
+          : <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${C.mint}, ${C.grey})` }} />}
+      </div>
+    </button>
+  );
+}
 
 function ListSkeleton() {
   return (
@@ -41,10 +64,6 @@ function MealsHub({ openDish }) {
   const dishByName = (name) => dishes.find((d) => d.name === name);
   const favDishes = useMemo(() => favs.map(dishByName).filter(Boolean), [favs, dishes]); // eslint-disable-line react-hooks/exhaustive-deps
   const recentDishes = useMemo(() => recent.map(dishByName).filter(Boolean), [recent, dishes]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tiles = useMemo(() => [
-    ['All', dishes.length],
-    ...MENU_CHIPS.map((c) => [c, dishes.filter(CATS[c]).length]),
-  ], [dishes]);
 
   // Delivery gate: the first step before browsing meals.
   if (gated) {
@@ -116,14 +135,12 @@ function MealsHub({ openDish }) {
 
         <div className="mt-6">
           <div className="text-sm font-semibold" style={{ color: C.ink }}>Browse by category</div>
-          <div className="grid grid-cols-2 gap-2.5 mt-3">
-            {tiles.map(([c, count]) => (
-              <button key={c} type="button" onClick={() => go('meals', c)}
-                className="flex items-center justify-between rounded-2xl px-4 py-4 text-sm font-medium text-left"
-                style={{ ...cardStyle, color: C.ink }}>
-                <span>{c === 'All' ? 'All meals' : c}<span className="block text-xs font-normal mt-0.5" style={{ color: C.mute }}>{count} dishes</span></span>
-                <ChevronRight size={15} color={C.sage} />
-              </button>
+          <div className="grid gap-3 mt-3">
+            <CategoryCard title="All meals" subtitle="The full menu" image={CATEGORY_CARDS[0].image}
+              count={dishes.length} onClick={() => go('meals', 'All')} />
+            {CATEGORY_CARDS.map((c) => (
+              <CategoryCard key={c.key} title={c.title} subtitle={c.subtitle} image={c.image}
+                count={dishes.filter(CATS[c.key]).length} onClick={() => go('meals', c.key)} />
             ))}
           </div>
         </div>
