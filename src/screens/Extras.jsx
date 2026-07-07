@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { C, serif, inr, priceOf, waLink, cartMealCount, planOverage } from '../lib/core.js';
+import { DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { C, serif, inr, priceOf, waLink, planOverage } from '../lib/core.js';
 import { BackBtn, Btn, DietDot, Field, Img, inputStyle, Required, SectionTitle, Sheet, cardStyle } from '../components/ui.jsx';
 import { DeliveryForm } from '../components/delivery.jsx';
 import { useUser } from '../context/UserContext.jsx';
 import { useMenu } from '../context/MenuContext.jsx';
 import { useCart } from '../stores/cart.js';
-import { MessageCircle, ChevronRight, CheckCircle2, CircleUser, Trash2, RefreshCw, HeartPulse } from 'lucide-react';
+import { MessageCircle, ChevronRight, CheckCircle2, CircleUser, Trash2, RefreshCw, HeartPulse, GripVertical, X } from 'lucide-react';
 
 // The kitchen serves lunch + dinner mains, so each day carries two
 // slots. Meals are laid out across days starting tomorrow.
@@ -20,34 +23,40 @@ const fmtDate = (d) => d.toLocaleDateString('en-IN', { month: 'short', day: 'num
 export function MealPlanScreen({ openDish }) {
   const { profile, plan, go, payExtras, acknowledgeExtras } = useUser();
   const { dishes } = useMenu();
-  const items = useCart((s) => s.items);
-  const setQty = useCart((s) => s.setQty);
-  const addItem = useCart((s) => s.add);
-  const [replacing, setReplacing] = useState(null);
+  const order = useCart((s) => s.order);
+  const reorder = useCart((s) => s.reorder);
+  const removeInstance = useCart((s) => s.removeInstance);
+  const replaceInstance = useCart((s) => s.replaceInstance);
+  const [replacing, setReplacing] = useState(null); // { id, dish }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const h = parseFloat(profile.height), w = parseFloat(profile.weight);
   const bmi = h > 0 && w > 0 ? w / Math.pow(h / 100, 2) : null;
   const bmiLabel = bmi == null ? 'Add height & weight' : bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Healthy range' : bmi < 30 ? 'Overweight' : 'Obese range';
 
-  const lines = useMemo(
-    () => items.map((i) => ({ item: i, dish: dishes.find((d) => d.name === i.name) })).filter((x) => x.dish),
-    [items, dishes]
+  // Resolve each ordered instance to its dish and split across days.
+  const slots = useMemo(
+    () => order.map((o) => ({ ...o, dish: dishes.find((d) => d.name === o.name) })).filter((o) => o.dish),
+    [order, dishes]
   );
-  const count = cartMealCount(items);
+  const count = slots.length;
   const overage = planOverage(plan, count);
-
-  // Expand quantities into meal instances and split across days.
   const days = useMemo(() => {
-    const instances = [];
-    lines.forEach(({ item, dish }) => { for (let k = 0; k < item.qty; k++) instances.push({ item, dish }); });
     const out = [];
-    for (let i = 0; i < instances.length; i += PER_DAY) {
+    for (let i = 0; i < slots.length; i += PER_DAY) {
       const d = new Date(); d.setDate(d.getDate() + 1 + out.length);
-      out.push({ date: d, meals: instances.slice(i, i + PER_DAY) });
+      out.push({ date: d, meals: slots.slice(i, i + PER_DAY) });
     }
     return out;
-  }, [lines]);
+  }, [slots]);
   const rangeLabel = days.length ? `${fmtDate(days[0].date)} – ${fmtDate(days[days.length - 1].date)}` : '';
+
+  const onDragEnd = ({ active, over }) => { if (over && active.id !== over.id) reorder(active.id, over.id); };
 
   return (
     <div className="px-5 pt-6 pb-6">
@@ -96,25 +105,32 @@ export function MealPlanScreen({ openDish }) {
           No meals in your plan yet.
           <div className="mt-3"><Btn small onClick={() => go('meals', null)}>Browse meals</Btn></div>
         </div>
-      ) : (
-        <div className="mt-5 grid gap-6">
-          {days.map(({ date, meals }, di) => (
-            <div key={di}>
-              <div className="mb-2.5" style={{ ...serif, fontSize: 20, fontWeight: 700, color: C.ink }}>
-                {di === 0 ? 'Tomorrow' : date.toLocaleDateString('en-IN', { weekday: 'long' })}, {fmtDate(date)}
-              </div>
-              <div className="grid gap-2.5">
-                {meals.map(({ item, dish }, mi) => (
-                  <DayMealRow key={dish.name + '-' + di + '-' + mi} slot={SLOTS[mi % SLOTS.length]} dish={dish}
-                    onOpen={() => openDish(dish)}
-                    onRemove={() => setQty(dish.name, item.qty - 1)}
-                    onReplace={() => setReplacing({ dish, item })} />
-                ))}
-              </div>
-            </div>
-          ))}
+      ) : (<>
+        <div className="text-xs mt-4 flex items-center gap-1.5" style={{ color: C.mute }}>
+          <GripVertical size={13} /> Drag a meal to move it to another day
         </div>
-      )}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={slots.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+            <div className="mt-3 grid gap-6">
+              {days.map(({ date, meals }, di) => (
+                <div key={di}>
+                  <div className="mb-2.5" style={{ ...serif, fontSize: 20, fontWeight: 700, color: C.ink }}>
+                    {di === 0 ? 'Tomorrow' : date.toLocaleDateString('en-IN', { weekday: 'long' })}, {fmtDate(date)}
+                  </div>
+                  <div className="grid gap-2.5">
+                    {meals.map((slot, mi) => (
+                      <SortableMeal key={slot.id} id={slot.id} slot={SLOTS[mi % SLOTS.length]} dish={slot.dish}
+                        onOpen={() => openDish(slot.dish)}
+                        onRemove={() => removeInstance(slot.id)}
+                        onReplace={() => setReplacing({ id: slot.id, dish: slot.dish })} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </>)}
 
       <div className="mt-6 grid gap-2">
         <Btn kind="ghost" onClick={() => go('meals', null)}>+ Add more meals</Btn>
@@ -123,17 +139,23 @@ export function MealPlanScreen({ openDish }) {
 
       {replacing && (
         <ReplaceSheet dish={replacing.dish} dishes={dishes} onClose={() => setReplacing(null)}
-          onPick={(next) => { setQty(replacing.dish.name, replacing.item.qty - 1); addItem(next.name); setReplacing(null); }} />
+          onPick={(next) => { replaceInstance(replacing.id, next.name); setReplacing(null); }} />
       )}
     </div>
   );
 }
 
-function DayMealRow({ slot, dish, onOpen, onRemove, onReplace }) {
+function SortableMeal({ id, slot, dish, onOpen, onRemove, onReplace }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { ...cardStyle, transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, boxShadow: isDragging ? '0 8px 24px rgba(45,45,45,0.18)' : undefined };
   return (
-    <div className="rounded-2xl p-2.5 flex items-center gap-3" style={cardStyle}>
+    <div ref={setNodeRef} style={style} className="rounded-2xl p-2.5 flex items-center gap-2">
+      <button type="button" className="flex-none px-0.5 cursor-grab" aria-label={`Drag ${dish.name} to reorder`}
+        style={{ touchAction: 'none' }} {...attributes} {...listeners}>
+        <GripVertical size={16} color={C.mute} />
+      </button>
       <button type="button" onClick={onOpen} className="flex-none" aria-label={`Open ${dish.name}`}>
-        <Img dish={dish} className="rounded-xl" style={{ width: 64, height: 64 }} />
+        <Img dish={dish} className="rounded-xl" style={{ width: 58, height: 58 }} />
       </button>
       <div className="flex-1 min-w-0">
         <span className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full" style={{ background: slot.bg, color: slot.color }}>{slot.label}</span>
@@ -172,9 +194,16 @@ function ReplaceSheet({ dish, dishes, onClose, onPick }) {
   return (
     <Sheet onClose={onClose} label={`Replace ${dish.name}`}>
       <div className="p-5 pb-8">
-        <h2 style={{ ...serif, fontSize: 22, fontWeight: 700, color: C.ink }}>Replace “{dish.name}”</h2>
-        <p className="text-sm mt-1 mb-4" style={{ color: C.mute }}>Pick a similar meal to swap in.</p>
-        <div className="grid gap-2">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 style={{ ...serif, fontSize: 22, fontWeight: 700, color: C.ink }}>Replace “{dish.name}”</h2>
+            <p className="text-sm mt-1" style={{ color: C.mute }}>Pick a similar meal to swap in.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cancel replace" className="flex-none rounded-full p-2" style={cardStyle}>
+            <X size={16} color={C.ink} />
+          </button>
+        </div>
+        <div className="grid gap-2 mt-4">
           {options.map((d) => (
             <button key={d.name} type="button" onClick={() => onPick(d)} className="flex items-center gap-3 rounded-2xl p-2.5 text-left" style={cardStyle}>
               <Img dish={d} className="rounded-xl flex-none" style={{ width: 48, height: 48 }} />
@@ -186,6 +215,7 @@ function ReplaceSheet({ dish, dishes, onClose, onPick }) {
           ))}
           {options.length === 0 && <div className="text-sm text-center py-6" style={{ color: C.mute }}>No similar meals available.</div>}
         </div>
+        <div className="mt-4"><Btn kind="ghost" className="w-full" onClick={onClose}>Cancel</Btn></div>
       </div>
     </Sheet>
   );

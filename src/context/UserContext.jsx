@@ -69,7 +69,7 @@ export function UserProvider({ children }) {
     }
     const mp = await loadMealPlan(u.id);
     if (mp) {
-      useCart.setState({ items: mp.items || [] });
+      useCart.getState().hydrate(mp.items || []);
       setPlanId(mp.planId || null);
       setPayExtras(!!mp.payExtras);
     }
