@@ -200,3 +200,20 @@ export const orderEnquiry = ({ profile = {}, plan = null, items = [], delivery =
 
   return lines.join('\n');
 };
+
+// WhatsApp message describing a saved plan update — lists the exact
+// changes (added/removed) plus the current state of the plan.
+export const planUpdateMessage = ({ profile = {}, plan = null, items = [], added = [], removed = [] }) => {
+  const lines = ['Hi Lean Kitchen! I updated my meal plan.', ''];
+  if (profile.name) lines.push(`Name: ${profile.name}`);
+  lines.push(`Plan: ${plan ? `${plan.name} — ${plan.meals} meals at ${inr(plan.perMeal)}/meal` : 'None selected'}`);
+  if (added.length) { lines.push('', 'Added:'); added.forEach((a) => lines.push(`+ ${a}`)); }
+  if (removed.length) { lines.push('', 'Removed:'); removed.forEach((r) => lines.push(`- ${r}`)); }
+  if (items.length) {
+    lines.push('', 'Current meals:');
+    items.forEach((i, idx) => lines.push(`${idx + 1}. ${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`));
+  } else {
+    lines.push('', 'Current meals: none yet');
+  }
+  return lines.join('\n');
+};

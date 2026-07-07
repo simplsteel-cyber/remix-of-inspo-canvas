@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js';
 import { checkDelivery } from '../lib/delivery.js';
 import { storage } from '../lib/storage.js';
 import { loadMealPlan, saveMealPlan } from '../lib/mealPlan.js';
+import { recommendDishes } from '../lib/core.js';
 import { useCart } from '../stores/cart.js';
 import { useMenu } from './MenuContext.jsx';
 
@@ -40,7 +41,7 @@ const HOME = { stage: 'app', tab: 'home', cat: null, step: 0, anchor: null };
 const Ctx = createContext(null);
 
 export function UserProvider({ children }) {
-  const { plans } = useMenu();
+  const { plans, dishes } = useMenu();
   const [booting, setBooting] = useState(true);
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -49,15 +50,44 @@ export function UserProvider({ children }) {
   const [planId, setPlanId] = useState(null);
   const [favs, setFavs] = useState([]);
   const [recent, setRecent] = useState([]);
-  const [deliverySkipped, setDeliverySkipped] = useState(false);
   const [payExtras, setPayExtras] = useState(false);
   const [route, setRoute] = useState(HOME);
   const cartItems = useCart((s) => s.items);
   const userRef = useRef(null);
   const profileSynced = useRef(false);
   const planLoaded = useRef(false);
+  const poppingRef = useRef(false);
+  const routeKeyRef = useRef('');
 
   const plan = plans.find((p) => p.id === planId) || null;
+
+  // ── Browser history integration ──────────────────────────────
+  // Every meaningful navigation (stage/tab/category/step change) is
+  // pushed into browser history, and back/forward restores it — so
+  // the back button returns to the previous screen instead of
+  // leaving the app. Anchor changes are transient and not pushed.
+  useEffect(() => {
+    if (booting || window.location.pathname.startsWith('/admin')) return;
+    const key = JSON.stringify({ s: route.stage, t: route.tab, c: route.cat, p: route.step });
+    if (key === routeKeyRef.current) return;
+    routeKeyRef.current = key;
+    if (poppingRef.current) { poppingRef.current = false; return; }
+    const state = { lk: true, route: { ...route, anchor: null } };
+    if (window.history.state?.lk) window.history.pushState(state, '');
+    else window.history.replaceState(state, '');
+  }, [booting, route]);
+
+  useEffect(() => {
+    const onPop = (e) => {
+      if (e.state?.lk && e.state.route) {
+        poppingRef.current = true;
+        routeKeyRef.current = JSON.stringify({ s: e.state.route.stage, t: e.state.route.tab, c: e.state.route.cat, p: e.state.route.step });
+        setRoute(e.state.route);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // Pull the server profile + saved meal plan, and decide where a
   // fresh sign-in lands.
@@ -87,7 +117,6 @@ export function UserProvider({ children }) {
       setPlanId(storage.get('planId'));
       setFavs(storage.get('favs', []));
       setRecent(storage.get('recent', []));
-      setDeliverySkipped(storage.get('deliverySkipped', false));
       setPayExtras(storage.get('payExtras', false));
 
       const u = await auth.getSession();
@@ -120,7 +149,6 @@ export function UserProvider({ children }) {
   useEffect(() => { if (!booting) storage.set('planId', planId); }, [booting, planId]);
   useEffect(() => { if (!booting) storage.set('favs', favs); }, [booting, favs]);
   useEffect(() => { if (!booting) storage.set('recent', recent); }, [booting, recent]);
-  useEffect(() => { if (!booting) storage.set('deliverySkipped', deliverySkipped); }, [booting, deliverySkipped]);
   useEffect(() => { if (!booting) storage.set('payExtras', payExtras); }, [booting, payExtras]);
   useEffect(() => { if (!booting && user) storage.set('route', route); }, [booting, user, route]);
 
@@ -143,7 +171,7 @@ export function UserProvider({ children }) {
   }, [booting, user, profile]);
 
   const value = {
-    booting, user, isAdmin, profile, delivery, plan, route, favs, recent, deliverySkipped, payExtras,
+    booting, user, isAdmin, profile, delivery, plan, route, favs, recent, payExtras,
 
     // Authentication (see lib/auth.js for provider details)
     signInWithEmail: (email, password) => auth.signInWithEmail(email, password),
@@ -164,7 +192,6 @@ export function UserProvider({ children }) {
       setPlanId(null);
       setFavs([]);
       setRecent([]);
-      setDeliverySkipped(false);
       setPayExtras(false);
       setRoute(HOME);
     },
@@ -176,24 +203,34 @@ export function UserProvider({ children }) {
       setDelivery(result);
       return result;
     },
-    skipDeliveryGate: () => setDeliverySkipped(true),
 
     // Favourites & recently viewed (dish names)
     toggleFav: (name) => setFavs((f) => (f.includes(name) ? f.filter((n) => n !== name) : [name, ...f])),
     trackViewed: (name) => setRecent((r) => [name, ...r.filter((n) => n !== name)].slice(0, 10)),
 
-    // Plans — selecting one opens the order page. A new plan resets
-    // any prior agreement to pay for extra meals.
+    // Plans — selecting one opens the My Plan (cart) view, even when
+    // empty. A new plan resets any prior pay-for-extras agreement.
     choosePlan: (p) => {
       setPlanId(p.id);
       setPayExtras(false);
-      setRoute({ ...HOME, tab: 'orders' });
+      setRoute({ ...HOME, tab: 'nutrition' });
     },
     // Post-signup: pick the plan and go straight to choosing meals.
     startWithPlan: (p) => {
       setPlanId(p.id);
       setPayExtras(false);
       setRoute({ ...HOME, tab: 'meals' });
+    },
+    // "Start with Starter Week": pre-fill the plan with 6 editable
+    // meals matched to the profile, then open My Plan.
+    quickStartStarter: () => {
+      const starter = plans.find((p) => p.id === 'starter') || plans[0];
+      if (!starter) return;
+      setPlanId(starter.id);
+      setPayExtras(false);
+      const picks = recommendDishes(profile, dishes, starter.meals || 6);
+      useCart.getState().hydrate(picks.map((d) => ({ name: d.name, qty: 1, notes: '' })));
+      setRoute({ ...HOME, tab: 'nutrition' });
     },
     clearPlan: () => { setPlanId(null); setPayExtras(false); },
     acknowledgeExtras: () => setPayExtras(true),

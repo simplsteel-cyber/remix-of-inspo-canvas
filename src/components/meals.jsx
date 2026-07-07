@@ -6,13 +6,17 @@ import { useMenu } from '../context/MenuContext.jsx';
 import { useCart } from '../stores/cart.js';
 import { Heart, X, Plus, Minus } from 'lucide-react';
 
-// Add-to-cart control: an Add button that becomes a quantity stepper.
+// Add-to-plan control: an Add button that becomes a quantity stepper.
 export function CartControl({ dish, small }) {
   const qty = useCart((s) => s.items.find((i) => i.name === dish.name)?.qty || 0);
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
   if (qty === 0) {
-    return <Btn small={small} onClick={(e) => { e.stopPropagation(); add(dish.name); }}>Add</Btn>;
+    return (
+      <Btn small={small} onClick={(e) => { e.stopPropagation(); add(dish.name); }}>
+        <Plus size={14} strokeWidth={2.5} /> Add to Plan
+      </Btn>
+    );
   }
   return (
     <span className="inline-flex items-center gap-3 rounded-full px-2 py-1.5" style={{ background: C.mint }} onClick={(e) => e.stopPropagation()}>

@@ -11,7 +11,7 @@ import { SubscriptionScreen } from './screens/Subscription.jsx';
 import { MealPlanScreen, AccountScreen } from './screens/Extras.jsx';
 import { MealDetail } from './components/meals.jsx';
 import { Skeleton } from './components/ui.jsx';
-import { Home, UtensilsCrossed, ShoppingBag, CalendarDays, CircleUser, MessageCircle } from 'lucide-react';
+import { Home, UtensilsCrossed, ShoppingBag, CalendarDays, CircleUser, MessageCircle, UserRound, UserRoundPlus } from 'lucide-react';
 
 // The admin surface (and its Excel parser) loads only when visited.
 const AdminScreen = lazy(() => import('./screens/Admin.jsx').then((m) => ({ default: m.AdminScreen })));
@@ -21,7 +21,7 @@ const TABS = [
   { id: 'meals', label: 'Meals', icon: UtensilsCrossed },
   { id: 'orders', label: 'Order', icon: ShoppingBag },
   { id: 'nutrition', label: 'My Plan', icon: CalendarDays },
-  { id: 'account', label: 'Account', icon: CircleUser },
+  { id: 'account', label: 'Profile', icon: CircleUser },
 ];
 
 function BootScreen() {
@@ -36,7 +36,7 @@ function BootScreen() {
 }
 
 export default function App() {
-  const { booting, route, go, trackViewed, user, profile, plan, payExtras } = useUser();
+  const { booting, route, go, setStage, trackViewed, user, profile, plan, payExtras } = useUser();
   const { dishes } = useMenu();
   const items = useCart((s) => s.items);
   const { stage, tab } = route;
@@ -87,6 +87,20 @@ export default function App() {
                 style={{ ...serif, fontSize: 21, fontWeight: 700, color: C.ink }}>
                 The Lean Kitchen
               </button>
+              <div className="absolute right-2 flex items-center gap-0.5">
+                {user ? (
+                  <button type="button" onClick={() => go('account', null)} aria-label="Profile" title="Profile" className="p-2.5">
+                    <CircleUser size={20} color={C.ink} strokeWidth={1.8} />
+                  </button>
+                ) : (<>
+                  <button type="button" onClick={() => setStage('welcome')} aria-label="Sign in" title="Sign in" className="p-2.5">
+                    <UserRound size={19} color={C.ink} strokeWidth={1.8} />
+                  </button>
+                  <button type="button" onClick={() => setStage('welcome')} aria-label="Create account" title="Create account" className="p-2.5">
+                    <UserRoundPlus size={19} color={C.ink} strokeWidth={1.8} />
+                  </button>
+                </>)}
+              </div>
             </header>
 
             <main className="pb-28" style={{ paddingTop: 52 }}>

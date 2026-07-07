@@ -28,7 +28,7 @@ export function PlanCard({ plan, onChoose, active }) {
           <li key={b} className="flex gap-2 items-start"><CheckCircle2 size={15} color={C.sage} className="flex-none mt-0.5" strokeWidth={1.8} />{b}</li>
         ))}
       </ul>
-      <div className="mt-4"><Btn small kind={active ? 'secondary' : 'primary'} onClick={() => onChoose(plan)}>{active ? 'View my plan' : 'View plan details'}</Btn></div>
+      <div className="mt-4"><Btn small kind={active ? 'secondary' : 'primary'} onClick={() => onChoose(plan)}>{active ? 'View my plan' : 'Choose this plan'}</Btn></div>
     </div>
   );
 }
@@ -42,7 +42,7 @@ function MealRowSkeleton() {
 }
 
 export function HomeScreen({ openDish }) {
-  const { go, choosePlan, plan, profile, delivery, user, setStage, route, clearAnchor } = useUser();
+  const { go, choosePlan, quickStartStarter, plan, profile, delivery, route, clearAnchor } = useUser();
   const { dishes, plans, menuLoading } = useMenu();
   const [checkingDelivery, setCheckingDelivery] = useState(false);
   const [comparing, setComparing] = useState(false);
@@ -71,22 +71,16 @@ export function HomeScreen({ openDish }) {
     <div className="pb-6">
       <div className="px-5 pt-6">
         <div className="rounded-3xl overflow-hidden" style={{ boxShadow: '0 8px 30px rgba(45,45,45,0.08)' }}>
-          <img src={HERO} alt="Overhead bowl of fresh food" className="w-full" style={{ height: 200, objectFit: 'cover' }} />
-          <div className="p-5" style={{ background: '#fff' }}>
-            <h1 style={{ ...serif, fontSize: 30, fontWeight: 700, color: C.ink, lineHeight: 1.1 }}>Healthy eating, made effortless.</h1>
-            <p className="text-sm mt-2" style={{ color: C.mute }}>Chef-crafted meals tailored to your goals. Delivered fresh every week.</p>
-            <div className="flex gap-2.5 mt-4">
+          <img src={HERO} alt="Overhead bowl of fresh food" className="w-full" style={{ height: 168, objectFit: 'cover' }} />
+          <div className="p-4" style={{ background: '#fff' }}>
+            <h1 style={{ ...serif, fontSize: 22, fontWeight: 700, color: C.ink, lineHeight: 1.15 }}>Healthy eating, made effortless.</h1>
+            <p className="text-xs mt-1" style={{ color: C.mute }}>Chef-crafted meals tailored to your goals. Delivered fresh every week.</p>
+            <div className="flex gap-2.5 mt-3">
               <Btn small onClick={() => go('plans')}>Explore plans</Btn>
               <Btn small kind="ghost" onClick={() => go('meals')}>Browse meals</Btn>
             </div>
           </div>
         </div>
-
-        {!user && (
-          <div className="mt-4">
-            <Btn className="w-full" onClick={() => setStage('welcome')}>Sign in or create account</Btn>
-          </div>
-        )}
 
         <div className="mt-4">
           <DeliveryStatus delivery={delivery} onEdit={() => setCheckingDelivery(true)} />
@@ -128,6 +122,11 @@ export function HomeScreen({ openDish }) {
         <div className="grid gap-3.5 mt-3">
           {plans.map((p) => <PlanCard key={p.id} plan={p} onChoose={choosePlan} active={plan?.id === p.id} />)}
         </div>
+        <button type="button" onClick={quickStartStarter}
+          className="w-full rounded-2xl px-4 py-3.5 mt-3 text-sm font-medium text-left"
+          style={{ background: '#fff', border: `1px dashed ${C.sage}`, color: '#3e6b2f' }}>
+          Not sure yet? <span className="font-semibold">Start with Starter Week</span> — we'll add 6 meals you can edit.
+        </button>
       </div>
 
       <div className="mt-8">

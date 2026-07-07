@@ -2,13 +2,28 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { C, serif, inr, priceOf, waLink, planOverage } from '../lib/core.js';
+import { C, serif, inr, priceOf, waLink, planOverage, planUpdateMessage } from '../lib/core.js';
 import { BackBtn, Btn, DietDot, Field, Img, inputStyle, Required, SectionTitle, Sheet, cardStyle } from '../components/ui.jsx';
 import { DeliveryForm } from '../components/delivery.jsx';
+import { notifyMealPlanChange } from '../lib/notify.js';
+import { storage } from '../lib/storage.js';
 import { useUser } from '../context/UserContext.jsx';
 import { useMenu } from '../context/MenuContext.jsx';
 import { useCart } from '../stores/cart.js';
 import { MessageCircle, ChevronRight, CheckCircle2, CircleUser, Trash2, RefreshCw, HeartPulse, GripVertical, X } from 'lucide-react';
+
+// Diff two item lists ([{name, qty}]) into human-readable added/removed.
+const diffItems = (prev, next) => {
+  const count = (list) => { const m = {}; list.forEach((i) => { m[i.name] = (m[i.name] || 0) + (i.qty || 1); }); return m; };
+  const a = count(prev), b = count(next);
+  const added = [], removed = [];
+  for (const name of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const d = (b[name] || 0) - (a[name] || 0);
+    if (d > 0) added.push(`${name}${d > 1 ? ` x${d}` : ''}`);
+    if (d < 0) removed.push(`${name}${d < -1 ? ` x${-d}` : ''}`);
+  }
+  return { added, removed };
+};
 
 // The kitchen serves lunch + dinner mains, so each day carries two
 // slots. Meals are laid out across days starting tomorrow.
@@ -21,13 +36,46 @@ const fmtDate = (d) => d.toLocaleDateString('en-IN', { month: 'short', day: 'num
 
 // ── My Meal Plan — the week's chosen meals by day, plus BMI + dietitian ──
 export function MealPlanScreen({ openDish }) {
-  const { profile, plan, go, payExtras, acknowledgeExtras } = useUser();
+  const { profile, plan, go, setStage, user, delivery, payExtras, acknowledgeExtras } = useUser();
   const { dishes } = useMenu();
   const order = useCart((s) => s.order);
+  const items = useCart((s) => s.items);
   const reorder = useCart((s) => s.reorder);
   const removeInstance = useCart((s) => s.removeInstance);
   const replaceInstance = useCart((s) => s.replaceInstance);
   const [replacing, setReplacing] = useState(null); // { id, dish }
+  const [toast, setToast] = useState(null);
+  const [savedTick, setSavedTick] = useState(0);
+
+  // Dirty when the current plan differs from the last explicit save.
+  const isDirty = useMemo(() => {
+    const snap = storage.get('lastSavedPlan', { items: [], planId: null });
+    return JSON.stringify({ i: items.map(({ name, qty }) => ({ name, qty })), p: plan?.id ?? null })
+      !== JSON.stringify({ i: (snap.items || []).map(({ name, qty }) => ({ name, qty })), p: snap.planId ?? null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, plan, savedTick]);
+
+  const saveChanges = () => {
+    const snap = storage.get('lastSavedPlan', { items: [], planId: null });
+    const { added, removed } = diffItems(snap.items || [], items);
+    const planChanged = (snap.planId ?? null) !== (plan?.id ?? null);
+    // Record + email the kitchen (best-effort, non-blocking).
+    notifyMealPlanChange({
+      event: 'plan_saved', user, profile, plan, delivery,
+      items: items.map((i) => { const d = dishes.find((x) => x.name === i.name) || {}; return { ...i, kcal: d.kcal ?? null, protein: d.protein ?? null }; }),
+      overage: planOverage(plan, items.reduce((s, i) => s + i.qty, 0)) ? { extra: planOverage(plan, items.reduce((s, i) => s + i.qty, 0)), payExtras } : null,
+    });
+    storage.set('lastSavedPlan', { items: items.map(({ name, qty }) => ({ name, qty })), planId: plan?.id ?? null });
+    setSavedTick((t) => t + 1);
+    const waHref = waLink(planUpdateMessage({
+      profile, plan, items,
+      added: planChanged && plan ? [...added, `Plan: ${plan.name}`] : added,
+      removed,
+    }));
+    setToast({ waHref });
+    window.clearTimeout(saveChanges._t);
+    saveChanges._t = window.setTimeout(() => setToast(null), 8000);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -61,7 +109,7 @@ export function MealPlanScreen({ openDish }) {
   return (
     <div className="px-5 pt-6 pb-6">
       <div className="flex items-start justify-between gap-3">
-        <BackBtn onClick={() => go('home', null)} />
+        <BackBtn onClick={() => go('home', null)} label="Back to Home" />
         <div className="text-right">
           <SectionTitle>My Meal Plan</SectionTitle>
           {rangeLabel && <div className="text-xs" style={{ color: C.mute }}>{rangeLabel}</div>}
@@ -133,9 +181,38 @@ export function MealPlanScreen({ openDish }) {
       </>)}
 
       <div className="mt-6 grid gap-2">
+        {(days.length > 0 || plan) && (
+          isDirty
+            ? <Btn className="w-full" onClick={saveChanges}>Save Changes</Btn>
+            : <Btn className="w-full" kind="secondary" disabled><CheckCircle2 size={16} /> Saved</Btn>
+        )}
         <Btn kind="ghost" onClick={() => go('meals', null)}>+ Add more meals</Btn>
-        {days.length > 0 && <Btn onClick={() => go('orders')}>Review &amp; order</Btn>}
+        {days.length > 0 && <Btn kind="ghost" onClick={() => go('orders')}>Proceed to send order</Btn>}
       </div>
+
+      {!user && (days.length > 0 || plan) && (
+        <div className="text-xs text-center mt-4" style={{ color: C.mute }}>
+          Save this plan to your profile?{' '}
+          <button type="button" onClick={() => setStage('welcome')} className="font-semibold underline" style={{ color: '#3e6b2f' }}>Sign in</button>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 z-50 lk-toast" role="status" style={{ bottom: '6.5rem', width: 'min(92vw, 26rem)' }}>
+          <div className="relative rounded-2xl p-4 shadow-lg" style={{ background: C.ink, color: '#fff' }}>
+            <div className="flex items-center gap-2 text-sm font-semibold"><CheckCircle2 size={16} color={C.sage} /> Changes saved</div>
+            <div className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.75)' }}>A confirmation has been sent to the kitchen by email.</div>
+            <a href={toast.waHref} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold mt-2.5 rounded-full px-3 py-1.5"
+              style={{ background: C.wa, color: '#fff' }}>
+              <MessageCircle size={13} /> Send update on WhatsApp
+            </a>
+            <button type="button" onClick={() => setToast(null)} aria-label="Dismiss" className="absolute top-2.5 right-2.5 p-1">
+              <X size={14} color="rgba(255,255,255,0.7)" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {replacing && (
         <ReplaceSheet dish={replacing.dish} dishes={dishes} onClose={() => setReplacing(null)}
@@ -281,8 +358,8 @@ export function AccountScreen() {
   return (
     <div className="px-5 pt-6 pb-6 grid gap-4">
       <div className="flex items-center justify-between gap-3">
-        <BackBtn onClick={goBack} />
-        <SectionTitle>Account</SectionTitle>
+        <BackBtn onClick={goBack} label="Back to Home" />
+        <SectionTitle>Profile</SectionTitle>
       </div>
       <div className="text-sm -mt-2 flex items-center justify-between gap-2" style={{ color: C.mute }}>
         <span className="truncate">Signed in{signedInAs ? ` · ${signedInAs}` : ''}</span>

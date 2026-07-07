@@ -47,15 +47,12 @@ export function MealsScreen({ openDish }) {
   return route.cat ? <CategoryScreen key={route.cat} openDish={openDish} /> : <MealsHub openDish={openDish} />;
 }
 
-// ── Meals hub — delivery first, then search, shortcuts, categories ──
+// ── Meals hub — full menu immediately; delivery check is optional ──
 function MealsHub({ openDish }) {
-  const { go, goBack, delivery, deliverySkipped, skipDeliveryGate, favs, recent } = useUser();
+  const { go, goBack, delivery, favs, recent } = useUser();
   const { dishes, menuLoading } = useMenu();
   const [editingDelivery, setEditingDelivery] = useState(false);
   const [q, setQ] = useState('');
-
-  const deliveryKnown = delivery && delivery.status !== 'unknown';
-  const gated = (!deliveryKnown && !deliverySkipped) || editingDelivery;
 
   const results = useMemo(
     () => (q.trim() ? dishes.filter((d) => matchesQuery(d, q.trim())) : []),
@@ -65,35 +62,26 @@ function MealsHub({ openDish }) {
   const favDishes = useMemo(() => favs.map(dishByName).filter(Boolean), [favs, dishes]); // eslint-disable-line react-hooks/exhaustive-deps
   const recentDishes = useMemo(() => recent.map(dishByName).filter(Boolean), [recent, dishes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Delivery gate: the first step before browsing meals.
-  if (gated) {
-    return (
-      <div className="px-5 pt-6 pb-6">
-        <BackBtn onClick={() => (editingDelivery ? setEditingDelivery(false) : goBack())} />
-        <h1 className="mt-6" style={{ ...serif, fontSize: 30, fontWeight: 700, color: C.ink }}>First — do we deliver to you?</h1>
-        <p className="text-sm mt-1 mb-6" style={{ color: C.mute }}>We cook fresh in {KITCHEN.area} ({KITCHEN.pincode}) and deliver nearby.</p>
-        <DeliveryForm onDone={() => setEditingDelivery(false)} />
-        {!deliveryKnown && (
-          <div className="mt-6 text-center">
-            <button type="button" onClick={skipDeliveryGate} className="text-sm font-medium px-4 py-2.5" style={{ color: C.mute }}>
-              Skip for now — browse the menu
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="px-5 pt-6 pb-4">
       <div className="flex items-center justify-between gap-3">
-        <BackBtn onClick={goBack} />
+        <BackBtn onClick={goBack} label="Back to Home" />
         <SectionTitle>Meals</SectionTitle>
       </div>
 
+      {/* Non-blocking: browse freely; check delivery whenever you like. */}
       <div className="mt-4">
-        <DeliveryStatus delivery={delivery} onEdit={() => setEditingDelivery(true)} />
+        <DeliveryStatus delivery={delivery} onEdit={() => setEditingDelivery((v) => !v)} />
       </div>
+      {editingDelivery && (
+        <div className="rounded-3xl p-4 mt-3" style={cardStyle}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold" style={{ color: C.ink }}>Check delivery — {KITCHEN.area} ({KITCHEN.pincode})</div>
+            <button type="button" onClick={() => setEditingDelivery(false)} className="text-xs font-medium" style={{ color: C.mute }}>Close</button>
+          </div>
+          <DeliveryForm onDone={() => setEditingDelivery(false)} />
+        </div>
+      )}
 
       <div className="mt-4">
         <SearchInput value={q} onChange={setQ} />
