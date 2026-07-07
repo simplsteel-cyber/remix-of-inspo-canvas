@@ -189,6 +189,12 @@ export function UserProvider({ children }) {
       setPayExtras(false);
       setRoute({ ...HOME, tab: 'orders' });
     },
+    // Post-signup: pick the plan and go straight to choosing meals.
+    startWithPlan: (p) => {
+      setPlanId(p.id);
+      setPayExtras(false);
+      setRoute({ ...HOME, tab: 'meals' });
+    },
     clearPlan: () => { setPlanId(null); setPayExtras(false); },
     acknowledgeExtras: () => setPayExtras(true),
 

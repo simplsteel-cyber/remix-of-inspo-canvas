@@ -190,7 +190,7 @@ export function RegisterSuccess() {
 
 // ── Onboarding — goal, meals, diet, delivery, recommendation ─
 export function Onboarding() {
-  const { profile, updateProfile, delivery, route, setStep, setStage, choosePlan, completeOnboarding } = useUser();
+  const { profile, updateProfile, delivery, route, setStep, setStage, startWithPlan, completeOnboarding } = useUser();
   const { plans } = useMenu();
   const step = route.step ?? 0;
   const goals = ['Weight loss', 'Muscle gain', 'Everyday wellness', 'Athletic performance'];
@@ -254,7 +254,7 @@ export function Onboarding() {
           <p className="text-sm mt-1" style={{ color: C.mute }}>{rec.desc}</p>
           <div className="text-sm mt-3 font-semibold" style={{ color: C.ink }}>{rec.meals} meals · {inr(rec.perMeal)} per meal</div>
           <div className="mt-4 grid gap-2">
-            <Btn onClick={() => choosePlan(rec)}>View plan details</Btn>
+            <Btn onClick={() => startWithPlan(rec)}>Choose plan &amp; pick meals</Btn>
             <Btn kind="ghost" onClick={completeOnboarding}>Explore first</Btn>
           </div>
         </div>

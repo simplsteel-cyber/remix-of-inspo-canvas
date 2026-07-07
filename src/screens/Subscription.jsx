@@ -15,22 +15,26 @@ function CartLine({ item, dish }) {
   const price = dish ? priceOf(dish) : null;
   return (
     <div className="rounded-2xl p-3" style={cardStyle}>
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         {dish && <Img dish={dish} className="rounded-xl flex-none" style={{ width: 56, height: 56 }} />}
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate" style={{ color: C.ink }}>{item.name}</div>
-          <div className="text-xs" style={{ color: C.mute }}>
-            {price ? inr(price) : 'Price on request'}{dish?.kcal ? ` · ${dish.kcal} kcal · ${dish.protein}g protein` : ''}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate" style={{ color: C.ink }}>{item.name}</div>
+              <div className="text-xs mt-0.5" style={{ color: C.mute }}>
+                {price ? inr(price) : 'Price on request'}{dish?.kcal ? ` · ${dish.kcal} kcal · ${dish.protein}g protein` : ''}
+              </div>
+            </div>
+            <button type="button" aria-label={`Remove ${item.name} from order`} onClick={() => remove(item.name)} className="p-1.5 flex-none -mt-0.5 -mr-1">
+              <Trash2 size={15} color={C.mute} />
+            </button>
           </div>
+          <span className="inline-flex items-center gap-3 rounded-full px-2.5 py-1 mt-2" style={{ background: C.mint }}>
+            <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => setQty(item.name, item.qty - 1)} className="p-1"><Minus size={14} color="#3e6b2f" /></button>
+            <span className="text-sm font-semibold min-w-4 text-center" style={{ color: '#3e6b2f' }}>{item.qty}</span>
+            <button type="button" aria-label={`Add one ${item.name}`} onClick={() => setQty(item.name, item.qty + 1)} className="p-1"><Plus size={14} color="#3e6b2f" /></button>
+          </span>
         </div>
-        <span className="inline-flex items-center gap-2.5 rounded-full px-2 py-1 flex-none" style={{ background: C.mint }}>
-          <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => setQty(item.name, item.qty - 1)} className="p-1"><Minus size={13} color="#3e6b2f" /></button>
-          <span className="text-sm font-semibold" style={{ color: '#3e6b2f' }}>{item.qty}</span>
-          <button type="button" aria-label={`Add one ${item.name}`} onClick={() => setQty(item.name, item.qty + 1)} className="p-1"><Plus size={13} color="#3e6b2f" /></button>
-        </span>
-        <button type="button" aria-label={`Remove ${item.name} from order`} onClick={() => remove(item.name)} className="p-1.5 flex-none">
-          <Trash2 size={15} color={C.mute} />
-        </button>
       </div>
       <input style={{ ...inputStyle, padding: '8px 12px', fontSize: 13 }} className="mt-2" value={item.notes}
         onChange={(e) => setNotes(item.name, e.target.value)} placeholder="Note — e.g. less spicy, no onion" aria-label={`Note for ${item.name}`} />

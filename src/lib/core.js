@@ -175,30 +175,28 @@ export const recommendDishes = (profile = {}, dishes = [], limit = 6) => {
 // Cart items: [{ dish, qty, notes }]
 export const orderEnquiry = ({ profile = {}, plan = null, items = [], delivery = null, payExtras = false }) => {
   const where = [profile.deliveryAddress, delivery?.pincode && `PIN ${delivery.pincode}`].filter(Boolean).join(' · ');
-  const subtotal = items.reduce((s, { dish, qty }) => s + (priceOf(dish) || 0) * qty, 0);
   const count = items.reduce((s, { qty }) => s + qty, 0);
 
-  const lines = ['Hi Lean Kitchen! I would like to place an order.'];
-  if (plan) lines.push('', `Plan: ${plan.name} — ${plan.meals} meals at ${inr(plan.perMeal)}/meal (est. ${inr(plan.meals * plan.perMeal)})`);
+  const lines = ['Hi Lean Kitchen! I would like to order.', ''];
+  if (profile.name) lines.push(`Name: ${profile.name}`);
+  if (profile.goal) lines.push(`Goal: ${profile.goal}`);
+  lines.push(`Delivery: ${where || 'to be confirmed'}`);
+
+  lines.push('', `Plan: ${plan ? `${plan.name} — ${plan.meals} meals at ${inr(plan.perMeal)}/meal` : 'None selected'}`);
+
   if (items.length) {
     lines.push('', 'Meals:');
-    items.forEach(({ dish, qty, notes }, i) => {
-      const price = priceOf(dish);
-      lines.push(`${i + 1}. ${dish.name} x${qty}${price ? ` — ${inr(price * qty)}` : ''} (${dish.kcal ?? '?'} kcal · ${dish.protein ?? '?'}g protein, approx)${notes ? ` — note: ${notes}` : ''}`);
-    });
-    lines.push(`Meals subtotal: ${inr(subtotal)}`);
+    items.forEach(({ dish, qty }, i) => lines.push(`${i + 1}. ${dish.name}${qty > 1 ? ` x${qty}` : ''}`));
   }
+
+  const notes = [];
+  items.forEach(({ dish, notes: n }) => { if (n) notes.push(`${dish.name}: ${n}`); });
   if (plan && count > plan.meals) {
     const extra = count - plan.meals;
-    lines.push('', `Note: ${extra} meal(s) beyond the ${plan.name} allowance of ${plan.meals}. ${payExtras ? 'I will pay for the extra meals.' : 'Please advise on upgrading or extra-meal pricing.'}`);
+    notes.push(`${extra} meal(s) over the ${plan.name} allowance — ${payExtras ? 'will pay for extras' : 'please advise on pricing'}`);
   }
-  const details = [
-    profile.name && `Name: ${profile.name}`,
-    profile.goal && `Goal: ${profile.goal}`,
-    profile.dietPref && profile.dietPref !== 'No preference' && `Diet preference: ${profile.dietPref}`,
-    where && `Delivery: ${where}`,
-    profile.nutritionistRef && `Nutritionist reference: ${profile.nutritionistRef}`,
-  ].filter(Boolean);
-  if (details.length) lines.push('', ...details);
+  if (profile.nutritionistRef) notes.push(`Nutritionist reference: ${profile.nutritionistRef}`);
+  if (notes.length) { lines.push('', 'Note(s):'); notes.forEach((n) => lines.push(`- ${n}`)); }
+
   return lines.join('\n');
 };
