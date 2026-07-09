@@ -10,23 +10,20 @@ import { ChevronLeft, CheckCircle2 } from 'lucide-react';
 
 const TOTAL_STEPS = 5;
 
-// ── Welcome — authentication (Supabase) ─────────────────────
+// ── Welcome — authentication (Supabase: Google + Email) ─────
 export function Welcome() {
-  const { signInWithEmail, sendPhoneOtp, verifyPhoneOtp, signInWithGoogle, setStage } = useUser();
-  const [method, setMethod] = useState(null); // null | 'email' | 'phone'
+  const { signInWithEmail, signInWithGoogle, setStage } = useUser();
+  const [method, setMethod] = useState(null); // null | 'email'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [confirmSent, setConfirmSent] = useState('');
 
   const run = async (fn) => {
     setBusy(true);
     setError('');
-    setNotice('');
+    setConfirmSent('');
     try {
       await fn();
     } catch (err) {
@@ -37,20 +34,14 @@ export function Welcome() {
   };
 
   const submitEmail = () => run(async () => {
-    await signInWithEmail(email, password);
-    // Routing happens via the auth listener once the session lands.
-  });
-  const submitPhone = () => run(async () => {
-    if (!otpSent) {
-      await sendPhoneOtp(phone);
-      setOtpSent(true);
-      setNotice('We sent a 6-digit code to your phone.');
-    } else {
-      await verifyPhoneOtp(phone, otp);
-    }
+    const res = await signInWithEmail(email, password);
+    // If email confirmation is required, no session lands yet — show
+    // a friendly "check your inbox" state instead of routing.
+    if (res?.pendingConfirmation) setConfirmSent(res.email || email.trim());
+    // Otherwise routing happens via the auth listener.
   });
 
-  const reset = () => { setMethod(null); setError(''); setNotice(''); setOtpSent(false); setOtp(''); };
+  const reset = () => { setMethod(null); setError(''); setConfirmSent(''); };
 
   return (
     <div className="flex flex-col min-h-screen relative" style={{ background: C.warm }}>
@@ -69,13 +60,19 @@ export function Welcome() {
           <div role="alert" className="text-sm mt-4 rounded-2xl px-4 py-3" style={{ background: '#FBEDEB', color: '#c0392b' }}>{error}</div>
         )}
         <div className="mt-auto grid gap-2.5 pt-8">
-          {!method && (<>
+          {confirmSent ? (
+            <div className="rounded-2xl p-5 text-center" style={{ background: C.mint }}>
+              <CheckCircle2 size={32} color={C.cta} strokeWidth={1.8} className="mx-auto" />
+              <div className="text-sm font-semibold mt-2" style={{ color: '#3e6b2f' }}>Confirm your email</div>
+              <p className="text-xs mt-1" style={{ color: '#3e6b2f' }}>
+                We sent a confirmation link to <span className="font-semibold">{confirmSent}</span>. Click it to activate your account, then sign in.
+              </p>
+              <button type="button" className="text-xs font-medium mt-3 underline" style={{ color: '#3e6b2f' }} onClick={reset}>Back to sign-in</button>
+            </div>
+          ) : !method ? (<>
             <Btn kind="ghost" busy={busy} onClick={() => run(signInWithGoogle)}>Continue with Google</Btn>
             <Btn kind="ghost" disabled={busy} onClick={() => { reset(); setMethod('email'); }}>Continue with Email</Btn>
-            <Btn kind="ghost" disabled={busy} onClick={() => { reset(); setMethod('phone'); }}>Continue with Phone</Btn>
-          </>)}
-
-          {method === 'email' && (
+          </>) : (
             <form className="grid gap-2.5" onSubmit={(e) => { e.preventDefault(); submitEmail(); }}>
               <Field label="Email">
                 <input style={inputStyle} type="email" autoComplete="email" autoFocus value={email}
@@ -87,24 +84,6 @@ export function Welcome() {
               </Field>
               <Btn type="submit" busy={busy}>Continue</Btn>
               <div className="text-xs text-center" style={{ color: C.mute }}>New here? The same form creates your account.</div>
-              <button type="button" className="text-xs py-2 font-medium" style={{ color: C.mute }} onClick={reset}>All sign-in options</button>
-            </form>
-          )}
-
-          {method === 'phone' && (
-            <form className="grid gap-2.5" onSubmit={(e) => { e.preventDefault(); submitPhone(); }}>
-              <Field label="Phone number" error={otpSent ? '' : error}>
-                <input style={inputStyle} type="tel" autoComplete="tel" autoFocus value={phone} disabled={otpSent}
-                  onChange={(e) => setPhone(e.target.value)} placeholder="+91 98XXX XXXXX" />
-              </Field>
-              {otpSent && (
-                <Field label="6-digit code" error={error}>
-                  <input style={inputStyle} inputMode="numeric" autoComplete="one-time-code" autoFocus value={otp}
-                    onChange={(e) => setOtp(e.target.value)} placeholder="123456" />
-                </Field>
-              )}
-              {notice && <div role="status" className="text-xs" style={{ color: '#3e6b2f' }}>{notice}</div>}
-              <Btn type="submit" busy={busy}>{otpSent ? 'Verify code' : 'Send code'}</Btn>
               <button type="button" className="text-xs py-2 font-medium" style={{ color: C.mute }} onClick={reset}>All sign-in options</button>
             </form>
           )}

@@ -175,8 +175,6 @@ export function UserProvider({ children }) {
 
     // Authentication (see lib/auth.js for provider details)
     signInWithEmail: (email, password) => auth.signInWithEmail(email, password),
-    sendPhoneOtp: (phone) => auth.sendPhoneOtp(phone),
-    verifyPhoneOtp: (phone, token) => auth.verifyPhoneOtp(phone, token),
     signInWithGoogle: () => auth.signInWithGoogle(),
     signOut: async () => {
       await auth.signOut();
