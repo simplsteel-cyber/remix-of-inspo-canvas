@@ -49,6 +49,23 @@ export const macros = (d) => {
 export const waLink = (t) => `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(t)}`;
 export const inr = (n) => '₹' + Number(n).toLocaleString('en-IN');
 
+// ── Display-name cleanup ─────────────────────────────────────
+// Menu text is imported from a spreadsheet and carries small typos
+// and machine-style Title Case. We fix these for display only; the
+// raw `name` stays the identity key (images, matching, cart) while
+// `title` is what users see.
+const TITLE_CONNECTORS = new Set(['and', 'in', 'with', 'of', 'the', 'a', 'an', 'to', 'for', 'on']);
+export const fixSpelling = (s) => String(s || '')
+  .replace(/vegitables/gi, (m) => (m[0] === 'V' ? 'Vegetables' : 'vegetables'))
+  .replace(/\(\s+/g, '(').replace(/\s+\)/g, ')')
+  .replace(/\s{2,}/g, ' ').trim();
+export const cleanName = (raw) => fixSpelling(raw)
+  .split(' ')
+  .map((w, i) => (i > 0 && TITLE_CONNECTORS.has(w.toLowerCase()) ? w.toLowerCase() : w))
+  .join(' ');
+// Prefer a pre-computed title; fall back to cleaning the raw name.
+export const titleOf = (dish) => dish?.title || cleanName(dish?.name || '');
+
 export const TRENDING = ['Healthy Mediterranean Bowl', 'Grilled Chicken Pomodoro', 'Paneer In Blackbean Sauce', 'Fish Goan Curry', 'Korean Tofu Bowl', 'Smoke Mutton Handi', 'Sundried Tomato Pesto Grilled Tofu', 'Chicken And Veg Thai Curry'];
 
 export const CATS = {
@@ -186,11 +203,11 @@ export const orderEnquiry = ({ profile = {}, plan = null, items = [], delivery =
 
   if (items.length) {
     lines.push('', 'Meals:');
-    items.forEach(({ dish, qty }, i) => lines.push(`${i + 1}. ${dish.name}${qty > 1 ? ` x${qty}` : ''}`));
+    items.forEach(({ dish, qty }, i) => lines.push(`${i + 1}. ${titleOf(dish)}${qty > 1 ? ` x${qty}` : ''}`));
   }
 
   const notes = [];
-  items.forEach(({ dish, notes: n }) => { if (n) notes.push(`${dish.name}: ${n}`); });
+  items.forEach(({ dish, notes: n }) => { if (n) notes.push(`${titleOf(dish)}: ${n}`); });
   if (plan && count > plan.meals) {
     const extra = count - plan.meals;
     notes.push(`${extra} meal(s) over the ${plan.name} allowance — ${payExtras ? 'will pay for extras' : 'please advise on pricing'}`);
@@ -211,7 +228,7 @@ export const planUpdateMessage = ({ profile = {}, plan = null, items = [], added
   if (removed.length) { lines.push('', 'Removed:'); removed.forEach((r) => lines.push(`- ${r}`)); }
   if (items.length) {
     lines.push('', 'Current meals:');
-    items.forEach((i, idx) => lines.push(`${idx + 1}. ${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`));
+    items.forEach((i, idx) => lines.push(`${idx + 1}. ${cleanName(i.name)}${i.qty > 1 ? ` x${i.qty}` : ''}`));
   } else {
     lines.push('', 'Current meals: none yet');
   }

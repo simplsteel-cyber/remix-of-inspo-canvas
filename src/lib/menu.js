@@ -1,26 +1,31 @@
 import { supabase } from './supabase.js';
-import { FALLBACK_PLANS } from './core.js';
+import { FALLBACK_PLANS, cleanName, fixSpelling } from './core.js';
 import fallbackDishes from '../data/dishes.json';
 
 // DB row (snake_case) → the dish shape the UI components consume.
-// Lives here (not in importMenu.js) so the xlsx parser stays out
-// of the main bundle — it loads only with the /admin chunk.
+// `name` stays the raw identity key (images, matching, cart) while
+// `title` and the text fields are cleaned for display.
 const toAppDish = (m) => ({
   name: m.name,
+  title: cleanName(m.name),
   cuisine: m.cuisine || '',
   diet: m.diet || '',
   vegan: !!m.vegan,
-  base: m.base || '',
-  side: m.side || '',
+  base: fixSpelling(m.base || ''),
+  side: fixSpelling(m.side || ''),
   price: m.price ?? '',
   kcal: m.kcal ?? null,
   protein: m.protein ?? null,
   tags: m.tags || [],
   section: m.section || '',
-  desc: m.description || '',
+  desc: fixSpelling(m.description || ''),
   image: m.image || null,
   availability: m.availability !== false,
 });
+
+// Bundled fallback dishes are already in app shape; just add the
+// cleaned title and fix spelling in the visible text.
+const cleanFallback = (d) => ({ ...d, title: cleanName(d.name), desc: fixSpelling(d.desc || ''), base: fixSpelling(d.base || ''), side: fixSpelling(d.side || '') });
 
 // ─────────────────────────────────────────────────────────────
 // Menu data access. Supabase is the source of truth; the bundled
@@ -36,7 +41,7 @@ export async function fetchMeals() {
     .order('name');
   if (error || !data?.length) {
     if (error) console.warn('[menu] meals fetch failed, using bundled fallback:', error.message);
-    return { dishes: fallbackDishes, source: 'fallback' };
+    return { dishes: fallbackDishes.map(cleanFallback), source: 'fallback' };
   }
   return { dishes: data.map(toAppDish), source: 'supabase' };
 }

@@ -126,7 +126,7 @@ export default function App() {
                   <Icon size={20} strokeWidth={1.8} />
                   {label}
                   {id === 'orders' && badge > 0 && (
-                    <span aria-label={`${badge} items in order`} className="absolute top-1.5 right-1/2 translate-x-4 rounded-full px-1.5 font-semibold"
+                    <span aria-label={`${badge} ${badge === 1 ? 'meal' : 'meals'} in order`} className="absolute top-1.5 right-1/2 translate-x-4 rounded-full px-1.5 font-semibold"
                       style={{ background: C.orange, color: '#fff', fontSize: 10 }}>{badge}</span>
                   )}
                 </button>

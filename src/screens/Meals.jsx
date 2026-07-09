@@ -7,9 +7,42 @@ import { DeliveryForm, DeliveryStatus } from '../components/delivery.jsx';
 import { BackBtn, Btn, SearchInput, SectionTitle, Sheet, Skeleton, cardStyle } from '../components/ui.jsx';
 import { useUser } from '../context/UserContext.jsx';
 import { useMenu } from '../context/MenuContext.jsx';
-import { SlidersHorizontal, Heart, History, ArrowUpRight } from 'lucide-react';
+import { useCart } from '../stores/cart.js';
+import { SlidersHorizontal, Heart, History, ArrowUpRight, Sparkles } from 'lucide-react';
 
 const matchesQuery = (d, q) => (d.name + ' ' + d.desc + ' ' + d.cuisine).toLowerCase().includes(q.toLowerCase());
+
+// Live ticker while filling a selected plan: progress + one-tap
+// autofill with Chef Ali's suggestions.
+function PlanTicker() {
+  const { plan, autofillPlan } = useUser();
+  const count = useCart((s) => s.items.reduce((a, i) => a + i.qty, 0));
+  if (!plan) return null;
+  const target = plan.meals;
+  const remaining = Math.max(0, target - count);
+  const pct = Math.min(100, Math.round((count / target) * 100));
+  const full = remaining === 0;
+  return (
+    <div className="rounded-2xl p-3.5 mt-4" style={{ ...cardStyle, border: `1px solid ${full ? C.sage : C.line}`, background: full ? C.mint : '#fff' }}>
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-semibold" style={{ color: C.ink }}>{plan.name}</span>
+        <span className="font-medium" role="status" style={{ color: full ? '#3e6b2f' : C.mute }}>
+          {full ? 'Plan full ✓' : `${count}/${target} chosen · ${remaining} to go`}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: C.line }}>
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: C.sage, transition: 'width 0.3s ease' }} />
+      </div>
+      {!full && (
+        <button type="button" onClick={autofillPlan}
+          className="w-full mt-3 rounded-full py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+          style={{ background: C.mint, color: '#3e6b2f' }}>
+          <Sparkles size={15} /> Autofill the rest with Chef Ali's suggestions
+        </button>
+      )}
+    </div>
+  );
+}
 
 // Large image-led category card, styled after the Diet reference.
 function CategoryCard({ title, subtitle, image, count, onClick }) {
@@ -68,6 +101,8 @@ function MealsHub({ openDish }) {
         <BackBtn onClick={goBack} label="Back to Home" />
         <SectionTitle>Meals</SectionTitle>
       </div>
+
+      <PlanTicker />
 
       {/* Non-blocking: browse freely; check delivery whenever you like. */}
       <div className="mt-4">
@@ -220,6 +255,7 @@ function CategoryScreen({ openDish }) {
       </div>
 
       <div className="px-5">
+        <PlanTicker />
         {menuLoading ? <ListSkeleton /> : (
           <div className="grid gap-4 mt-2">
             {filtered.map((d) => <MealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}

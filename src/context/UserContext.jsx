@@ -233,6 +233,24 @@ export function UserProvider({ children }) {
     clearPlan: () => { setPlanId(null); setPayExtras(false); },
     acknowledgeExtras: () => setPayExtras(true),
 
+    // Fill the remaining plan slots with Chef Ali's suggestions —
+    // profile-matched (diet + goal), skipping meals already chosen.
+    autofillPlan: () => {
+      if (!plan) return;
+      const cart = useCart.getState();
+      let need = plan.meals - cart.items.reduce((s, i) => s + i.qty, 0);
+      if (need <= 0) return;
+      const have = new Set(cart.items.map((i) => i.name));
+      const ranked = recommendDishes(profile, dishes, dishes.length);
+      for (const d of ranked) {
+        if (need <= 0) break;
+        if (have.has(d.name)) continue;
+        cart.add(d.name);
+        have.add(d.name);
+        need--;
+      }
+    },
+
     // Routing. 'plans' is a virtual target: the Plans section of Home.
     go: (tab, cat) => setRoute((r) => ({
       ...r,

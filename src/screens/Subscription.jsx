@@ -20,7 +20,7 @@ function CartLine({ item, dish }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-sm font-medium truncate" style={{ color: C.ink }}>{item.name}</div>
+              <div className="text-sm font-medium truncate" style={{ color: C.ink }}>{dish?.title || item.name}</div>
               <div className="text-xs mt-0.5" style={{ color: C.mute }}>
                 {price ? inr(price) : 'Price on request'}{dish?.kcal ? ` · ${dish.kcal} kcal · ${dish.protein}g protein` : ''}
               </div>

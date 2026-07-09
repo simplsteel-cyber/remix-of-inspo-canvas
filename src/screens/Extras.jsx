@@ -116,12 +116,17 @@ export function MealPlanScreen({ openDish }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mt-4">
-        <div className="rounded-2xl p-4" style={{ background: C.mint }}>
-          <div className="text-xs font-medium" style={{ color: '#3e6b2f' }}>Your BMI</div>
-          <div className="text-2xl font-semibold" style={{ color: C.ink }}>{bmi ? bmi.toFixed(1) : '—'}</div>
-          <div className="text-xs" style={{ color: '#3e6b2f' }}>{bmiLabel} · a guide, not a diagnosis</div>
-        </div>
+      <div className={`grid gap-3 mt-4 ${user ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {/* BMI is only useful once signed in (needs height & weight);
+            for guests we hide it, for members it's a tappable shortcut
+            to the profile where those values live. */}
+        {user && (
+          <button type="button" onClick={() => go('account', null)} className="rounded-2xl p-4 text-left" style={{ background: C.mint }}>
+            <div className="text-xs font-medium" style={{ color: '#3e6b2f' }}>Your BMI</div>
+            <div className="text-2xl font-semibold" style={{ color: C.ink }}>{bmi ? bmi.toFixed(1) : '—'}</div>
+            <div className="text-xs" style={{ color: '#3e6b2f' }}>{bmi ? `${bmiLabel} · a guide` : 'Tap to add height & weight'}</div>
+          </button>
+        )}
         <a href={waLink(`Hi Lean Kitchen! I'd like to book a dietitian consultation.${profile.name ? ' I\'m ' + profile.name + '.' : ''}${profile.goal ? ' Goal: ' + profile.goal + '.' : ''}`)}
           target="_blank" rel="noreferrer" className="rounded-2xl p-4 flex flex-col justify-between" style={cardStyle}>
           <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: C.ink }}><HeartPulse size={16} color={C.sage} strokeWidth={1.8} /> Dietitian</div>
@@ -238,7 +243,7 @@ function SortableMeal({ id, slot, dish, onOpen, onRemove, onReplace }) {
         <span className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full" style={{ background: slot.bg, color: slot.color }}>{slot.label}</span>
         <div className="flex items-center gap-1.5 mt-1">
           <DietDot diet={dish.diet} vegan={dish.vegan} />
-          <span className="text-sm font-medium truncate" style={{ color: C.ink }}>{dish.name}</span>
+          <span className="text-sm font-medium truncate" style={{ color: C.ink }}>{dish.title || dish.name}</span>
         </div>
         <div className="flex items-center gap-3 mt-1">
           <button type="button" onClick={onReplace} className="text-xs font-medium inline-flex items-center gap-1" style={{ color: C.mute }}><RefreshCw size={12} /> Replace</button>
@@ -273,7 +278,7 @@ function ReplaceSheet({ dish, dishes, onClose, onPick }) {
       <div className="p-5 pb-8">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 style={{ ...serif, fontSize: 22, fontWeight: 700, color: C.ink }}>Replace “{dish.name}”</h2>
+            <h2 style={{ ...serif, fontSize: 22, fontWeight: 700, color: C.ink }}>Replace “{dish.title || dish.name}”</h2>
             <p className="text-sm mt-1" style={{ color: C.mute }}>Pick a similar meal to swap in.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Cancel replace" className="flex-none rounded-full p-2" style={cardStyle}>
@@ -285,7 +290,7 @@ function ReplaceSheet({ dish, dishes, onClose, onPick }) {
             <button key={d.name} type="button" onClick={() => onPick(d)} className="flex items-center gap-3 rounded-2xl p-2.5 text-left" style={cardStyle}>
               <Img dish={d} className="rounded-xl flex-none" style={{ width: 48, height: 48 }} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5"><DietDot diet={d.diet} vegan={d.vegan} /><span className="text-sm font-medium truncate" style={{ color: C.ink }}>{d.name}</span></div>
+                <div className="flex items-center gap-1.5"><DietDot diet={d.diet} vegan={d.vegan} /><span className="text-sm font-medium truncate" style={{ color: C.ink }}>{d.title || d.name}</span></div>
                 <div className="text-xs" style={{ color: C.mute }}>{d.protein ?? '—'}g protein · {priceOf(d) ? inr(priceOf(d)) : '—'}</div>
               </div>
             </button>

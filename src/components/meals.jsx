@@ -44,7 +44,7 @@ export function MealCard({ dish, onOpen }) {
       <div className="p-4">
         <div className="flex items-center gap-2 min-w-0">
           <DietDot diet={dish.diet} vegan={dish.vegan} />
-          <h3 className="truncate" style={{ ...serif, fontSize: 19, fontWeight: 700, color: C.ink }}>{dish.name}</h3>
+          <h3 className="truncate" style={{ ...serif, fontSize: 19, fontWeight: 700, color: C.ink }}>{dish.title || dish.name}</h3>
         </div>
         <div className="text-xs mt-1.5" style={{ color: C.mute }}>{dish.kcal ?? '—'} kcal · {dish.protein ?? '—'}g protein (approx)</div>
         <div className="flex items-center justify-between mt-3">
@@ -65,7 +65,7 @@ export function MiniMealCard({ dish, onOpen }) {
       <div className="p-3">
         <div className="flex items-center gap-1.5 min-w-0">
           <DietDot diet={dish.diet} vegan={dish.vegan} />
-          <span className="text-sm font-semibold truncate" style={{ color: C.ink }}>{dish.name}</span>
+          <span className="text-sm font-semibold truncate" style={{ color: C.ink }}>{dish.title || dish.name}</span>
         </div>
         <div className="flex items-center justify-between mt-1.5 text-xs" style={{ color: C.mute }}>
           <span>{dish.protein ?? '—'}g protein</span>
@@ -96,7 +96,7 @@ export function MealDetail({ dish, onClose }) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <DietDot diet={dish.diet} vegan={dish.vegan} />
-            <h2 style={{ ...serif, fontSize: 26, fontWeight: 700, color: C.ink, lineHeight: 1.1 }}>{dish.name}</h2>
+            <h2 style={{ ...serif, fontSize: 26, fontWeight: 700, color: C.ink, lineHeight: 1.1 }}>{dish.title || dish.name}</h2>
           </div>
           {priceOf(dish) && <span className="font-semibold flex-none" style={{ color: C.ink }}>{inr(priceOf(dish))}</span>}
         </div>
