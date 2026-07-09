@@ -85,14 +85,6 @@ export function HomeScreen({ openDish }) {
         <div className="mt-4">
           <DeliveryStatus delivery={delivery} onEdit={() => setCheckingDelivery(true)} />
         </div>
-
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          {[[BadgeCheck, 'Nutritionist approved'], [Sun, 'Fresh daily'], [Leaf, 'No preservatives'], [Recycle, 'Sustainable packaging']].map(([I, t]) => (
-            <div key={t} className="flex items-center gap-2 rounded-2xl px-3.5 py-3 text-xs font-medium" style={{ ...cardStyle, color: C.ink }}>
-              <I size={16} color={C.sage} strokeWidth={1.8} /> {t}
-            </div>
-          ))}
-        </div>
       </div>
 
       {(menuLoading || recommended.length > 0) && (profile.goal || profile.dietPref !== 'No preference') && (
@@ -127,6 +119,14 @@ export function HomeScreen({ openDish }) {
           style={{ background: '#fff', border: `1px dashed ${C.sage}`, color: '#3e6b2f' }}>
           Not sure yet? <span className="font-semibold">Start with Starter Week</span> — we'll add 6 meals you can edit.
         </button>
+
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          {[[BadgeCheck, 'Nutritionist approved'], [Sun, 'Fresh daily'], [Leaf, 'No preservatives'], [Recycle, 'Sustainable packaging']].map(([I, t]) => (
+            <div key={t} className="flex items-center gap-2 rounded-2xl px-3.5 py-3 text-xs font-medium" style={{ ...cardStyle, color: C.ink }}>
+              <I size={16} color={C.sage} strokeWidth={1.8} /> {t}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-8">
