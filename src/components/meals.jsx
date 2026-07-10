@@ -6,16 +6,44 @@ import { useMenu } from '../context/MenuContext.jsx';
 import { useCart } from '../stores/cart.js';
 import { Heart, X, Plus, Minus } from 'lucide-react';
 
-// Add-to-plan control: an Add button that becomes a quantity stepper.
-export function CartControl({ dish, small }) {
+// Add-to-cart control: an Add button that becomes a quantity stepper.
+// `block` renders a full-width version for the meal-detail sheet;
+// `floating` renders a compact pill that overlays a card image.
+export function CartControl({ dish, small, block, floating }) {
   const qty = useCart((s) => s.items.find((i) => i.name === dish.name)?.qty || 0);
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
+  if (floating) {
+    if (qty === 0) {
+      return (
+        <button type="button" aria-label={`Add ${dish.name} to cart`} onClick={(e) => { e.stopPropagation(); add(dish.name); }}
+          className="rounded-full p-2 shadow-md" style={{ background: C.cta, color: '#fff' }}>
+          <Plus size={18} strokeWidth={2.75} />
+        </button>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-1 shadow-md" style={{ background: '#fff', border: `1px solid ${C.line}` }} onClick={(e) => e.stopPropagation()}>
+        <button type="button" aria-label={`Remove one ${dish.name}`} onClick={() => setQty(dish.name, qty - 1)} className="p-0.5"><Minus size={15} color="#3e6b2f" strokeWidth={2.25} /></button>
+        <span className="text-sm font-semibold min-w-4 text-center" aria-live="polite" style={{ color: '#3e6b2f' }}>{qty}</span>
+        <button type="button" aria-label={`Add one ${dish.name}`} onClick={() => setQty(dish.name, qty + 1)} className="p-0.5"><Plus size={15} color="#3e6b2f" strokeWidth={2.25} /></button>
+      </span>
+    );
+  }
   if (qty === 0) {
     return (
-      <Btn small={small} onClick={(e) => { e.stopPropagation(); add(dish.name); }}>
-        <Plus size={14} strokeWidth={2.5} /> Add to Plan
+      <Btn small={small} className={block ? 'w-full' : ''} onClick={(e) => { e.stopPropagation(); add(dish.name); }}>
+        <Plus size={block ? 16 : 14} strokeWidth={2.5} /> Add to Cart
       </Btn>
+    );
+  }
+  if (block) {
+    return (
+      <div className="flex items-center justify-between rounded-full px-2 py-1.5" style={{ background: C.mint }} onClick={(e) => e.stopPropagation()}>
+        <button type="button" aria-label={`Remove one ${dish.name}`} onClick={() => setQty(dish.name, qty - 1)} className="rounded-full p-2.5" style={{ background: '#fff' }}><Minus size={16} color="#3e6b2f" /></button>
+        <span className="text-sm font-semibold" aria-live="polite" style={{ color: '#3e6b2f' }}>{qty} in cart</span>
+        <button type="button" aria-label={`Add one ${dish.name}`} onClick={() => setQty(dish.name, qty + 1)} className="rounded-full p-2.5" style={{ background: '#fff' }}><Plus size={16} color="#3e6b2f" /></button>
+      </div>
     );
   }
   return (
@@ -40,6 +68,7 @@ export function MealCard({ dish, onOpen }) {
           className="absolute top-3 right-3 rounded-full p-2.5" style={{ background: 'rgba(255,255,255,0.92)' }}>
           <Heart size={16} color={fav ? C.orange : C.mute} fill={fav ? C.orange : 'none'} />
         </button>
+        <div className="absolute bottom-3 right-3"><CartControl dish={dish} floating /></div>
       </div>
       <div className="p-4">
         <div className="flex items-center gap-2 min-w-0">
@@ -47,9 +76,8 @@ export function MealCard({ dish, onOpen }) {
           <h3 className="truncate" style={{ ...serif, fontSize: 19, fontWeight: 700, color: C.ink }}>{dish.title || dish.name}</h3>
         </div>
         <div className="text-xs mt-1.5" style={{ color: C.mute }}>{dish.kcal ?? '—'} kcal · {dish.protein ?? '—'}g protein (approx)</div>
-        <div className="flex items-center justify-between mt-3">
+        <div className="mt-3">
           <span className="font-semibold" style={{ color: C.ink }}>{priceOf(dish) ? inr(priceOf(dish)) : 'Price on request'}</span>
-          <CartControl dish={dish} small />
         </div>
       </div>
     </div>
@@ -60,8 +88,13 @@ export function MealCard({ dish, onOpen }) {
 // and recently viewed — one definition everywhere.
 export function MiniMealCard({ dish, onOpen }) {
   return (
-    <button type="button" onClick={() => onOpen(dish)} className="flex-none w-44 rounded-3xl overflow-hidden text-left" style={cardStyle}>
-      <Img dish={dish} className="w-full" style={{ height: 112 }} />
+    <div onClick={() => onOpen(dish)} role="button" tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(dish); } }}
+      className="flex-none w-44 rounded-3xl overflow-hidden text-left cursor-pointer" style={cardStyle}>
+      <div className="relative">
+        <Img dish={dish} className="w-full" style={{ height: 112 }} />
+        <div className="absolute bottom-2 right-2"><CartControl dish={dish} floating /></div>
+      </div>
       <div className="p-3">
         <div className="flex items-center gap-1.5 min-w-0">
           <DietDot diet={dish.diet} vegan={dish.vegan} />
@@ -72,7 +105,7 @@ export function MiniMealCard({ dish, onOpen }) {
           <span className="font-medium" style={{ color: C.ink }}>{priceOf(dish) ? inr(priceOf(dish)) : ''}</span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -135,7 +168,7 @@ export function MealDetail({ dish, onClose }) {
         </div>
 
         <div className="mt-6 grid gap-2">
-          <CartControl dish={dish} />
+          <CartControl dish={dish} block />
           {inCart && (
             showNotes || inCart.notes ? (
               <input style={inputStyle} value={inCart.notes} onChange={(e) => setNotes(dish.name, e.target.value)}

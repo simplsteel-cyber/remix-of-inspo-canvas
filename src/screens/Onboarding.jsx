@@ -159,22 +159,25 @@ export function Register() {
 
 // ── Registration success confirmation ───────────────────────
 export function RegisterSuccess() {
-  const { profile, setStage } = useUser();
+  const { profile, setStage, go } = useUser();
   return (
     <div className="min-h-screen px-6 pt-24 pb-10 flex flex-col items-center text-center" style={{ background: C.warm }}>
       <CheckCircle2 size={56} color={C.cta} strokeWidth={1.5} />
       <h1 className="mt-5" style={{ ...serif, fontSize: 30, fontWeight: 700, color: C.ink }}>Account created</h1>
       <p className="text-sm mt-2 leading-relaxed" style={{ color: C.mute }}>
-        Welcome{profile.name ? `, ${profile.name}` : ''}! Let's personalise your meal plan — a few quick questions.
+        Welcome{profile.name ? `, ${profile.name}` : ''}! Dive into the menu and start your order — or answer a few quick questions so we can tailor your meals.
       </p>
-      <div className="mt-auto w-full"><Btn className="w-full" onClick={() => setStage('onboard')}>Personalise my plan</Btn></div>
+      <div className="mt-auto w-full grid gap-2">
+        <Btn className="w-full" onClick={() => go('meals')}>Browse the menu</Btn>
+        <Btn kind="ghost" className="w-full" onClick={() => setStage('onboard')}>Personalise my meals</Btn>
+      </div>
     </div>
   );
 }
 
 // ── Onboarding — goal, meals, diet, delivery, recommendation ─
 export function Onboarding() {
-  const { profile, updateProfile, delivery, route, setStep, setStage, startWithPlan, completeOnboarding } = useUser();
+  const { profile, updateProfile, delivery, route, setStep, setStage, startWithPlan, go } = useUser();
   const { plans } = useMenu();
   const step = route.step ?? 0;
   const goals = ['Weight loss', 'Muscle gain', 'Everyday wellness', 'Athletic performance'];
@@ -238,8 +241,8 @@ export function Onboarding() {
           <p className="text-sm mt-1" style={{ color: C.mute }}>{rec.desc}</p>
           <div className="text-sm mt-3 font-semibold" style={{ color: C.ink }}>{rec.meals} meals · {inr(rec.perMeal)} per meal</div>
           <div className="mt-4 grid gap-2">
-            <Btn onClick={() => startWithPlan(rec)}>Choose plan &amp; pick meals</Btn>
-            <Btn kind="ghost" onClick={completeOnboarding}>Explore first</Btn>
+            <Btn onClick={() => go('meals')}>Browse the menu</Btn>
+            <Btn kind="ghost" onClick={() => startWithPlan(rec)}>Start with {rec.name}</Btn>
           </div>
         </div>
       </>)}

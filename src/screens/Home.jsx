@@ -73,8 +73,8 @@ export function HomeScreen({ openDish }) {
             <h1 style={{ ...serif, fontSize: 22, fontWeight: 700, color: C.ink, lineHeight: 1.15 }}>Healthy eating, made effortless.</h1>
             <p className="text-xs mt-1" style={{ color: C.mute }}>Chef-crafted meals tailored to your goals. Delivered fresh every week.</p>
             <div className="flex gap-2.5 mt-3">
-              <Btn small onClick={() => go('plans')}>Explore plans</Btn>
-              <Btn small kind="ghost" onClick={() => go('meals')}>Browse meals</Btn>
+              <Btn small onClick={() => go('meals')}>Browse meals</Btn>
+              <Btn small kind="ghost" onClick={() => go('plans')}>See plans</Btn>
             </div>
           </div>
         </div>
@@ -108,11 +108,12 @@ export function HomeScreen({ openDish }) {
 
       <div ref={plansRef} className="px-5 mt-8" id="plans" style={{ scrollMarginTop: 12 }}>
         <div className="flex items-center justify-between">
-          <SectionTitle>Plans</SectionTitle>
+          <SectionTitle>Subscribe &amp; save</SectionTitle>
           <button type="button" onClick={() => setComparing(true)} className="text-sm font-medium" style={{ color: '#3e6b2f' }}>
             Compare plans
           </button>
         </div>
+        <p className="text-sm mt-1" style={{ color: C.mute }}>Loved your first order? Subscribe and pay up to ₹100 less per meal.</p>
         <div className="grid gap-3.5 mt-3">
           {plans.map((p) => <PlanCard key={p.id} plan={p} onChoose={choosePlan} active={plan?.id === p.id} />)}
         </div>
