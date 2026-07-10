@@ -50,7 +50,7 @@ export function Welcome() {
         <ChevronLeft size={18} color={C.ink} />
       </button>
       <img src={HERO} alt="Fresh chef-crafted bowl" className="w-full" style={{ height: 240, objectFit: 'cover' }} />
-      <div className="flex-1 px-6 pt-8 pb-10 flex flex-col">
+      <div className="flex-1 px-6 pt-8 pb-28 flex flex-col">
         <h1 style={{ ...serif, fontSize: 40, fontWeight: 700, color: C.ink, lineHeight: 1.05 }}>Lean Kitchen</h1>
         <div className="text-sm mt-1" style={{ color: C.mute }}>by Black Olive · Chef Ali Azan</div>
         <p className="mt-4 text-base leading-relaxed" style={{ color: '#565b54' }}>
@@ -59,7 +59,7 @@ export function Welcome() {
         {error && !method && (
           <div role="alert" className="text-sm mt-4 rounded-2xl px-4 py-3" style={{ background: '#FBEDEB', color: '#c0392b' }}>{error}</div>
         )}
-        <div className="mt-auto grid gap-2.5 pt-8">
+        <div className="grid gap-2.5 pt-8">
           {confirmSent ? (
             <div className="rounded-2xl p-5 text-center" style={{ background: C.mint }}>
               <CheckCircle2 size={32} color={C.cta} strokeWidth={1.8} className="mx-auto" />
@@ -104,23 +104,26 @@ export function Register() {
   const handleContinue = () => {
     const e = {};
     if (!profile.name.trim()) e.name = 'Please enter your name';
-    if (!(h > 0) || h < 90 || h > 250) e.height = 'Enter a height between 90 and 250 cm';
-    if (!(w > 0) || w < 25 || w > 250) e.weight = 'Enter a weight between 25 and 250 kg';
+    if (!profile.phone.trim()) e.phone = 'Please enter your phone or WhatsApp number';
     setErrors(e);
     if (Object.keys(e).length === 0) setStage('registered');
   };
 
   return (
-    <div className="min-h-screen px-6 pt-10 pb-10" style={{ background: C.warm }}>
+    <div className="min-h-screen px-6 pt-10 pb-28" style={{ background: C.warm }}>
       <div className="mb-6">
         <BackBtn onClick={() => setStage('app')} />
       </div>
       <h1 style={{ ...serif, fontSize: 32, fontWeight: 700, color: C.ink }}>Tell us about you</h1>
-      <p className="text-sm mt-1 mb-6" style={{ color: C.mute }}>This shapes your recommendations. You can edit it anytime.</p>
+      <p className="text-sm mt-1 mb-6" style={{ color: C.mute }}>Just your name and number to get started — the rest is optional and shapes your recommendations. You can edit it anytime.</p>
       <div className="grid gap-4">
         <Field label={<>Name<Required /></>} error={errors.name}>
           <input style={inputStyle} aria-required="true" autoComplete="name" value={profile.name} onChange={set('name')} placeholder="Your name" />
         </Field>
+        <Field label={<>Phone / WhatsApp<Required /></>} error={errors.phone}>
+          <input style={inputStyle} aria-required="true" type="tel" inputMode="tel" autoComplete="tel" value={profile.phone} onChange={set('phone')} placeholder="e.g. 98925 72408" />
+        </Field>
+        <div className="text-xs font-semibold mt-1" style={{ color: C.mute }}>Optional — helps us tailor your plan</div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Age"><input style={inputStyle} inputMode="numeric" value={profile.age} onChange={set('age')} placeholder="30" /></Field>
           <Field label="Gender">
@@ -130,20 +133,22 @@ export function Register() {
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={<>Height (cm)<Required /></>} error={errors.height}>
-            <input style={inputStyle} aria-required="true" inputMode="numeric" value={profile.height} onChange={set('height')} placeholder="170" />
+          <Field label="Height (cm)">
+            <input style={inputStyle} inputMode="numeric" value={profile.height} onChange={set('height')} placeholder="170" />
           </Field>
-          <Field label={<>Weight (kg)<Required /></>} error={errors.weight}>
-            <input style={inputStyle} aria-required="true" inputMode="numeric" value={profile.weight} onChange={set('weight')} placeholder="70" />
+          <Field label="Weight (kg)">
+            <input style={inputStyle} inputMode="numeric" value={profile.weight} onChange={set('weight')} placeholder="70" />
           </Field>
         </div>
-        <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: C.mint }}>
-          <div>
-            <div className="text-xs font-medium" style={{ color: '#3e6b2f' }}>Your BMI</div>
-            <div className="text-2xl font-semibold" style={{ color: C.ink }}>{bmi ? bmi.toFixed(1) : '—'}</div>
+        {bmi && (
+          <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: C.mint }}>
+            <div>
+              <div className="text-xs font-medium" style={{ color: '#3e6b2f' }}>Your BMI</div>
+              <div className="text-2xl font-semibold" style={{ color: C.ink }}>{bmi.toFixed(1)}</div>
+            </div>
+            <div className="text-xs text-right" style={{ color: '#3e6b2f' }}>A guide, not a diagnosis</div>
           </div>
-          <div className="text-xs text-right" style={{ color: '#3e6b2f' }}>A guide, not a diagnosis</div>
-        </div>
+        )}
         <Field label="Allergies (if any)"><input style={inputStyle} value={profile.allergies} onChange={set('allergies')} placeholder="e.g. peanuts, shellfish" /></Field>
         <Field label="Nutritionist Reference (optional)"><input style={inputStyle} value={profile.nutritionistRef} onChange={set('nutritionistRef')} placeholder="Referred by (optional)" /></Field>
       </div>

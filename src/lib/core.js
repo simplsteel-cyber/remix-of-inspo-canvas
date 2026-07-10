@@ -196,6 +196,7 @@ export const orderEnquiry = ({ profile = {}, plan = null, items = [], delivery =
 
   const lines = ['Hi Lean Kitchen! I would like to order.', ''];
   if (profile.name) lines.push(`Name: ${profile.name}`);
+  if (profile.phone) lines.push(`Phone/WhatsApp: ${profile.phone}`);
   if (profile.goal) lines.push(`Goal: ${profile.goal}`);
   lines.push(`Delivery: ${where || 'to be confirmed'}`);
 

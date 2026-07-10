@@ -13,7 +13,7 @@ import { priceOf } from './core.js';
 export async function notifyMealPlanChange({ event = 'meal_plan_updated', user, profile = {}, items = [], plan = null, overage = null }) {
   const subtotal = items.reduce((s, i) => s + (priceOf(i) || 0) * (i.qty || 1), 0);
   const lineItems = items.map((i) => ({ name: i.name, qty: i.qty || 1, notes: i.notes || '', kcal: i.kcal ?? null, protein: i.protein ?? null }));
-  const customer = { name: profile.name || '', email: user?.email || '', phone: user?.phone || '', goal: profile.goal || '', dietPref: profile.dietPref || '' };
+  const customer = { name: profile.name || '', email: user?.email || '', phone: profile.phone || user?.phone || '', goal: profile.goal || '', dietPref: profile.dietPref || '' };
   const payload = { event, customer, items: lineItems, plan: plan && { name: plan.name, meals: plan.meals, perMeal: plan.perMeal }, subtotal, overage };
 
   // 1. Audit log (RLS allows own / guest inserts).

@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { C, serif, inr, waLink, orderEnquiry, priceOf } from '../lib/core.js';
-import { BackBtn, Btn, Img, SectionTitle, cardStyle, inputStyle } from '../components/ui.jsx';
+import { BackBtn, Btn, Img, SectionTitle, WhatsAppIcon, cardStyle, inputStyle } from '../components/ui.jsx';
 import { DeliveryStatus } from '../components/delivery.jsx';
 import { PlanCompareSheet } from '../components/plans.jsx';
 import { useUser } from '../context/UserContext.jsx';
 import { useMenu } from '../context/MenuContext.jsx';
 import { useCart } from '../stores/cart.js';
-import { ShoppingBag, CheckCircle2, MessageCircle, Trash2, Plus, Minus } from 'lucide-react';
+import { ShoppingBag, CheckCircle2, Trash2, Plus, Minus } from 'lucide-react';
 
 function CartLine({ item, dish }) {
   const setQty = useCart((s) => s.setQty);
@@ -106,6 +106,13 @@ export function SubscriptionScreen() {
         <SectionTitle>Your order</SectionTitle>
       </div>
 
+      {/* Quick order — send straight to WhatsApp, no account required. */}
+      <a href={waLink(message)} target="_blank" rel="noreferrer"
+        className="inline-flex items-center justify-center gap-2 rounded-full font-semibold px-6 py-3.5 text-sm w-full mt-4"
+        style={{ background: C.wa, color: '#fff', boxShadow: '0 2px 10px rgba(31,170,83,0.28)' }}>
+        <WhatsAppIcon size={17} color="#fff" /> {needsRegistration ? 'Send order on WhatsApp — no account needed' : 'Send order on WhatsApp'}
+      </a>
+
       {plan ? (
         <div className="rounded-3xl p-5 mt-4" style={{ ...cardStyle, border: `1.5px solid ${C.sage}` }}>
           <div className="flex items-start justify-between gap-2">
@@ -135,7 +142,7 @@ export function SubscriptionScreen() {
             <div className="text-sm font-semibold" style={{ color: C.ink }}>Meals ({items.reduce((s, i) => s + i.qty, 0)})</div>
             <button type="button" onClick={clearCart} className="text-xs font-medium" style={{ color: C.mute }}>Clear all</button>
           </div>
-          <div className="grid gap-2.5 mt-3">
+          <div className="grid grid-cols-1 gap-2.5 mt-3">
             {lines.map(({ item, dish }) => <CartLine key={item.name} item={item} dish={dish} />)}
           </div>
           <div className="rounded-2xl p-4 mt-3 text-sm grid gap-1.5" style={cardStyle}>
@@ -178,16 +185,7 @@ export function SubscriptionScreen() {
         </div>
       )}
 
-      <div className="mt-4 grid gap-2">
-        <a href={waLink(message)} target="_blank" rel="noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-full font-semibold px-6 py-3.5 text-sm w-full"
-          style={needsRegistration
-            ? { ...cardStyle, color: C.wa }
-            : { background: C.wa, color: '#fff', boxShadow: '0 2px 10px rgba(31,170,83,0.28)' }}>
-          <MessageCircle size={17} /> {needsRegistration ? 'Order on WhatsApp without an account' : 'Order on WhatsApp'}
-        </a>
-      </div>
-      <div className="text-xs mt-3 text-center leading-relaxed" style={{ color: C.mute }}>
+      <div className="text-xs mt-5 text-center leading-relaxed" style={{ color: C.mute }}>
         We confirm your order, meals, and delivery personally on WhatsApp — there's no payment in the app.
       </div>
     </div>

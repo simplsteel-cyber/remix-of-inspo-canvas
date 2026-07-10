@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { C, serif, inr, TRENDING, HOME_TILES, recommendDishes } from '../lib/core.js';
 import { HERO } from '../data/images.js';
-import { KITCHEN } from '../lib/delivery.js';
-import { Btn, Sheet, SectionTitle, Skeleton, cardStyle } from '../components/ui.jsx';
+import { Btn, SectionTitle, Skeleton, cardStyle } from '../components/ui.jsx';
 import { MiniMealCard } from '../components/meals.jsx';
-import { DeliveryForm, DeliveryStatus } from '../components/delivery.jsx';
 import { PlanCompareSheet } from '../components/plans.jsx';
 import { useUser } from '../context/UserContext.jsx';
 import { useMenu } from '../context/MenuContext.jsx';
@@ -42,9 +40,8 @@ function MealRowSkeleton() {
 }
 
 export function HomeScreen({ openDish }) {
-  const { go, choosePlan, quickStartStarter, plan, profile, delivery, route, clearAnchor } = useUser();
+  const { go, choosePlan, quickStartStarter, plan, profile, route, clearAnchor } = useUser();
   const { dishes, plans, menuLoading } = useMenu();
-  const [checkingDelivery, setCheckingDelivery] = useState(false);
   const [comparing, setComparing] = useState(false);
   const plansRef = useRef(null);
 
@@ -81,10 +78,6 @@ export function HomeScreen({ openDish }) {
             </div>
           </div>
         </div>
-
-        <div className="mt-4">
-          <DeliveryStatus delivery={delivery} onEdit={() => setCheckingDelivery(true)} />
-        </div>
       </div>
 
       {(menuLoading || recommended.length > 0) && (profile.goal || profile.dietPref !== 'No preference') && (
@@ -103,6 +96,15 @@ export function HomeScreen({ openDish }) {
           )}
         </div>
       )}
+
+      <div className="mt-8">
+        <SectionTitle className="px-5">Most loved meals</SectionTitle>
+        {menuLoading ? <MealRowSkeleton /> : (
+          <div className="flex gap-3 overflow-x-auto px-5 mt-3 pb-2 no-scrollbar">
+            {loved.map((d) => <MiniMealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
+          </div>
+        )}
+      </div>
 
       <div ref={plansRef} className="px-5 mt-8" id="plans" style={{ scrollMarginTop: 12 }}>
         <div className="flex items-center justify-between">
@@ -127,15 +129,6 @@ export function HomeScreen({ openDish }) {
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="mt-8">
-        <SectionTitle className="px-5">Most loved meals</SectionTitle>
-        {menuLoading ? <MealRowSkeleton /> : (
-          <div className="flex gap-3 overflow-x-auto px-5 mt-3 pb-2 no-scrollbar">
-            {loved.map((d) => <MiniMealCard key={d.name + d.diet} dish={d} onOpen={openDish} />)}
-          </div>
-        )}
       </div>
 
       <div className="px-5 mt-8">
@@ -165,16 +158,6 @@ export function HomeScreen({ openDish }) {
           ))}
         </div>
       </div>
-
-      {checkingDelivery && (
-        <Sheet onClose={() => setCheckingDelivery(false)} label="Check delivery availability">
-          <div className="p-5 pb-8">
-            <h2 style={{ ...serif, fontSize: 24, fontWeight: 700, color: C.ink }}>Delivery availability</h2>
-            <p className="text-sm mt-1 mb-5" style={{ color: C.mute }}>We deliver fresh from {KITCHEN.area} ({KITCHEN.pincode}).</p>
-            <DeliveryForm onDone={() => setCheckingDelivery(false)} />
-          </div>
-        </Sheet>
-      )}
 
       {comparing && <PlanCompareSheet onClose={() => setComparing(false)} />}
     </div>

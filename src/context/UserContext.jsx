@@ -16,7 +16,7 @@ import { useMenu } from './MenuContext.jsx';
 // ─────────────────────────────────────────────────────────────
 
 export const EMPTY_PROFILE = {
-  name: '', age: '', gender: '', height: '', weight: '', goal: '',
+  name: '', phone: '', age: '', gender: '', height: '', weight: '', goal: '',
   dietPref: 'No preference', allergies: '', mealsPerWeek: 12,
   nutritionistRef: '', deliveryAddress: '', pincode: '',
 };

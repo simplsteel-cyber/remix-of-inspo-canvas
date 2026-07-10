@@ -10,8 +10,8 @@ import { MealsScreen } from './screens/Meals.jsx';
 import { SubscriptionScreen } from './screens/Subscription.jsx';
 import { MealPlanScreen, AccountScreen } from './screens/Extras.jsx';
 import { MealDetail } from './components/meals.jsx';
-import { Skeleton } from './components/ui.jsx';
-import { Home, UtensilsCrossed, ShoppingBag, CalendarDays, CircleUser, MessageCircle, UserRound, UserRoundPlus } from 'lucide-react';
+import { Skeleton, WhatsAppIcon } from './components/ui.jsx';
+import { Home, UtensilsCrossed, ShoppingBag, CalendarDays, CircleUser, ChevronRight, UserRound, UserRoundPlus } from 'lucide-react';
 
 // The admin surface (and its Excel parser) loads only when visited.
 const AdminScreen = lazy(() => import('./screens/Admin.jsx').then((m) => ({ default: m.AdminScreen })));
@@ -32,6 +32,44 @@ function BootScreen() {
       <Skeleton style={{ height: 16, width: '80%' }} />
       <Skeleton style={{ height: 48, borderRadius: 999 }} />
     </div>
+  );
+}
+
+// Bottom tab bar. Rendered inside the fixed bottom bar so it can sit
+// under the persistent cart banner and on the auth screens too.
+function BottomNav({ tab, badge, onGo }) {
+  return (
+    <nav className="grid grid-cols-5 w-full" aria-label="Main"
+      style={{ background: 'rgba(255,255,255,0.96)', borderTop: `1px solid ${C.line}`, backdropFilter: 'blur(8px)' }}>
+      {TABS.map(({ id, label, icon: Icon }) => (
+        <button key={id} type="button" onClick={() => onGo(id, null)} aria-current={tab === id ? 'page' : undefined}
+          className="relative flex flex-col items-center gap-1 py-3 text-xs font-medium" style={{ color: tab === id ? '#3e6b2f' : C.mute }}>
+          <Icon size={20} strokeWidth={1.8} />
+          {label}
+          {id === 'orders' && badge > 0 && (
+            <span aria-label={`${badge} ${badge === 1 ? 'meal' : 'meals'} in order`} className="absolute top-1.5 right-1/2 translate-x-4 rounded-full px-1.5 font-semibold"
+              style={{ background: C.orange, color: '#fff', fontSize: 10 }}>{badge}</span>
+          )}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+// Persistent "you have meals selected" banner — sits above the tab
+// bar on every screen (except the order page itself) and jumps
+// straight to the order.
+function CartBanner({ count, onOpen }) {
+  return (
+    <button type="button" onClick={onOpen} aria-label={`View your order — ${count} ${count === 1 ? 'meal' : 'meals'} selected`}
+      className="flex items-center justify-between gap-3 w-full px-4 py-3 text-sm font-semibold"
+      style={{ background: C.cta, color: '#fff', boxShadow: '0 -2px 12px rgba(45,45,45,0.14)' }}>
+      <span className="flex items-center gap-2">
+        <ShoppingBag size={17} strokeWidth={2} />
+        {count} meal{count === 1 ? '' : 's'} selected
+      </span>
+      <span className="flex items-center gap-1">View order <ChevronRight size={16} /></span>
+    </button>
   );
 }
 
@@ -71,6 +109,10 @@ export default function App() {
   }
 
   const badge = cartCount(items);
+  const mealCount = cartMealCount(items);
+  // Persistent cart banner: shows on every app screen except the
+  // order page itself, once meals have been selected.
+  const showBanner = stage === 'app' && tab !== 'orders' && mealCount > 0;
 
   return (
     <div className="min-h-screen flex justify-center" style={{ background: '#EFEFEC', ...sans }}>
@@ -103,7 +145,7 @@ export default function App() {
               </div>
             </header>
 
-            <main className="pb-28" style={{ paddingTop: 52 }}>
+            <main style={{ paddingTop: 52, paddingBottom: showBanner ? '9rem' : '7rem' }}>
               {tab === 'home' && <HomeScreen openDish={openDish} />}
               {tab === 'meals' && <MealsScreen openDish={openDish} />}
               {tab === 'orders' && <SubscriptionScreen />}
@@ -111,30 +153,27 @@ export default function App() {
               {tab === 'account' && <AccountScreen />}
             </main>
 
-            {/* Persistent WhatsApp support — the CTA follows the user everywhere. */}
+            {/* Persistent WhatsApp support — raised when the cart banner is showing. */}
             <a href={waLink('Hi Lean Kitchen! I have a question about your meal plans.')} target="_blank" rel="noreferrer"
               aria-label="Chat with us on WhatsApp"
               className="fixed z-40 rounded-full p-3.5 shadow-lg"
-              style={{ background: C.wa, color: '#fff', bottom: '5.5rem', right: 'max(1rem, calc(50vw - 208px))' }}>
-              <MessageCircle size={22} strokeWidth={2} />
+              style={{ background: C.wa, color: '#fff', bottom: showBanner ? '9rem' : '5.5rem', right: 'max(1rem, calc(50vw - 208px))' }}>
+              <WhatsAppIcon size={22} color="#fff" />
             </a>
 
-            <nav className="fixed bottom-0 w-full max-w-md grid grid-cols-5 z-30" aria-label="Main" style={{ background: 'rgba(255,255,255,0.96)', borderTop: `1px solid ${C.line}`, backdropFilter: 'blur(8px)' }}>
-              {TABS.map(({ id, label, icon: Icon }) => (
-                <button key={id} type="button" onClick={() => go(id, null)} aria-current={tab === id ? 'page' : undefined}
-                  className="relative flex flex-col items-center gap-1 py-3 text-xs font-medium" style={{ color: tab === id ? '#3e6b2f' : C.mute }}>
-                  <Icon size={20} strokeWidth={1.8} />
-                  {label}
-                  {id === 'orders' && badge > 0 && (
-                    <span aria-label={`${badge} ${badge === 1 ? 'meal' : 'meals'} in order`} className="absolute top-1.5 right-1/2 translate-x-4 rounded-full px-1.5 font-semibold"
-                      style={{ background: C.orange, color: '#fff', fontSize: 10 }}>{badge}</span>
-                  )}
-                </button>
-              ))}
-            </nav>
+            <div className="fixed z-30" style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 448 }}>
+              {showBanner && <CartBanner count={mealCount} onOpen={() => go('orders', null)} />}
+              <BottomNav tab={tab} badge={badge} onGo={go} />
+            </div>
 
             {detail && <MealDetail dish={detail} onClose={() => setDetail(null)} />}
           </>)}
+
+          {(stage === 'welcome' || stage === 'register') && (
+            <div className="fixed z-30" style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 448 }}>
+              <BottomNav tab={tab} badge={badge} onGo={go} />
+            </div>
+          )}
         </>)}
       </div>
     </div>
